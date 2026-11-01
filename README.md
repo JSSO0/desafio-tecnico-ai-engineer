@@ -52,7 +52,19 @@ LLM_MODEL=gpt-4.1-mini
 
 ## Premissas e qualidade dos dados
 
-*(preenchido na fase de dados — ver `memory-bank/02-dados-e-premissas.md`)*
+Os arquivos de origem **não foram editados**. Divergências são reportadas pelo build
+(`qualidade_dados`) e tratadas como premissa documentada, nunca corrigidas em silêncio:
+
+| Achado | Impacto no comportamento |
+|---|---|
+| Pedidos 3 e 20 têm `total_brl` diferente da soma dos itens (R$3.450 vs R$3.498; R$1.400 vs R$1.488) | O agente reporta o total gravado e sinaliza a divergência; não recalcula nem inventa desconto |
+| `stock_quantity` é o estoque **atual**, não o da data do pedido | Nunca inferir "estava sem estoque" a partir do estoque de hoje |
+| Categorias 6 (Sopro/Madeiras), 7 (Metais) e 8 (Cordas Orquestrais) não têm produtos | Pergunta sobre saxofone/violino recebe resposta honesta, sem invenção |
+| Produtos 96 e 113 com estoque 0 (113 descontinuado) | "Violões até R$1.000" retorna 12 disponíveis, não 14 |
+| Promoção de 12% no Takamine GD20 (id 95) está **inativa** | Preço correto é R$2.199, sem desconto |
+| Só 8 dos 50 clientes têm pedido; cliente 3 tem pedidos 1 e 19 | Identificação por telefone, não por nome |
+
+Detalhamento completo em [`memory-bank/02-dados-e-premissas.md`](memory-bank/02-dados-e-premissas.md).
 
 ## Limitações conhecidas e o que faria com mais tempo
 

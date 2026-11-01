@@ -21,7 +21,10 @@ README com justificativas, e 3–5 conversas de exemplo.
 4. **Autorização não é decidida pelo modelo.** `consultar_pedido` usa o cliente vinculado à sessão;
    nunca aceite `customer_id` vindo do modelo.
 5. **Ferramentas são read-only.** Nenhuma tool escreve em banco, arquivo de negócio ou serviço externo.
-6. **Commits por fase.** Sem force-push, sem squash de tudo em um commit.
+6. **Commits por incremento coerente.** Sem force-push, sem squash de tudo em um commit.
+   Um commit = um assunto, tipo convencional (`feat`/`fix`/`test`/`docs`/`refactor`/`chore`) com escopo
+   (`feat(db):`, `test(rag):`). Se o diff passa de ~10 arquivos ou mistura assuntos, quebre em commits.
+   Mudança de comportamento e o teste dela entram juntos.
 
 ## Comandos
 

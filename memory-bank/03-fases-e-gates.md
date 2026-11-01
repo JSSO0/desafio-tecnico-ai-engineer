@@ -41,6 +41,25 @@ Regra: **nenhuma fase avança sem aprovação explícita do dono do projeto.** G
 ### GATE 1 — Agente responde os 4 cenários
 - **Status:** pendente
 
+### B2 — Dados e corpus (sem gate próprio, entra no GATE 1)
+- **Entregue:** `scripts/build_db.py` + `api/app/db/` (schema.sql, build.py, connection.py),
+  10 arquivos de política em `data/policies/*.md`, índice FTS5, `api/app/rag/policies.py`.
+- **Verificação executada:**
+  - build no startup: `{"categories":9,"products":65,"customers":50,"orders":20,"order_items":22,
+    "promotions":25,"policies":25,"integridade":true}` + `qualidade_dados` apontando pedidos 3 e 20 e
+    categorias 6/7/8
+  - `pytest` → 36 passed · `ruff check` → All checks passed
+  - retrieval: 11 perguntas em linguagem natural acertam a seção esperada; pergunta fora do domínio
+    retorna vazio
+  - custo: 280 tokens de política por turno (k=3) vs 2.930 do manual inteiro → −90%
+- **Bugs encontrados e corrigidos nesta fase:**
+  1. `MATCH` com texto natural quebrava (pontuação) e aceitava operadores → sanitização + citação.
+  2. Prefixo de 6 caracteres não alinhava `devolver`/`devolução` → 5.
+  3. BM25 puro invertia a ordem (`compra` ofuscava `devolução`; `tempo` pesava mais que `garantia`)
+     → re-rank por cobertura com IDF + boost de título.
+  4. `(...).__str__().split()` gerava tokens como `"('a"` → **nenhuma stopword era filtrada**.
+     Corrigido e travado por teste de regressão.
+
 ### GATE 2 — Contrato de API congelado
 - **Status:** pendente
 
