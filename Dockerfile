@@ -16,6 +16,7 @@ RUN uv sync --no-install-project --no-cache
 
 COPY api ./api
 COPY scripts ./scripts
+COPY data ./data
 
 RUN useradd --create-home --uid 10001 app \
     && mkdir -p /data /app/logs \

@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     deepseek_api_key: str | None = None
 
     database_path: Path = Path("/data/loja.db")
+    data_dir: Path = Path("/app/data")
     logs_dir: Path = Path("/app/logs")
+
+    @property
+    def policies_dir(self) -> Path:
+        return self.data_dir / "policies"
 
     @property
     def provider_api_key(self) -> str | None:
