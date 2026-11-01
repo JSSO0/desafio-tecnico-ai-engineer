@@ -1,0 +1,40 @@
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    app_env: str = "local"
+    app_version: str = "0.1.0"
+
+    llm_provider: str = "deepseek"
+    llm_model: str = "deepseek-chat"
+    llm_temperature: float = 0.2
+
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    deepseek_api_key: str | None = None
+
+    database_path: Path = Path("/data/loja.db")
+    logs_dir: Path = Path("/app/logs")
+
+    @property
+    def provider_api_key(self) -> str | None:
+        raw = {
+            "openai": self.openai_api_key,
+            "anthropic": self.anthropic_api_key,
+            "deepseek": self.deepseek_api_key,
+        }.get(self.llm_provider)
+        return raw.strip() if raw and raw.strip() else None
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

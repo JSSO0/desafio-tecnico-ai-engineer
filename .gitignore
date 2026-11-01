@@ -1,0 +1,36 @@
+# segredos
+.env
+.env.*
+!.env.example
+
+# artefatos locais
+*.db
+*.db-wal
+*.db-shm
+logs/
+!logs/.gitkeep
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# node (UI externa)
+node_modules/
+
+# ferramentas de desenvolvimento guiado por especificacao (nao fazem parte da entrega)
+# os artefatos duradouros ficam em specs/
+.specify/
+.opencode/
+.claude/
+.cursor/
+.github/prompts/
+
+# sistema
+.DS_Store
+Thumbs.db
+
+/.opencode
+/.specify

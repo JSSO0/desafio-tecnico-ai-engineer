@@ -1,0 +1,35 @@
+[project]
+name = "emporio-da-musica-agent"
+version = "0.1.0"
+description = "Agente de atendimento da Emporio da Musica (desafio tecnico AI Engineer - Artefact)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic-settings>=2.6",
+    "langchain>=1.0",
+    "langchain-openai>=0.3",
+    "langchain-anthropic>=0.3",
+    "langchain-deepseek>=0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "ruff>=0.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["api/tests"]
+addopts = "-q"
