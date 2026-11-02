@@ -10,16 +10,16 @@ PII_KEYS = {"email", "phone", "cpf", "endereco", "city", "customer_id"}
 
 
 @pytest.fixture
-def ferramentas(conn: sqlite3.Connection):
-    sessao = SessionContext()
-    return sessao, {tool.name: tool for tool in build_tools(sessao, conn)}
+def toolset(conn: sqlite3.Connection):
+    session = SessionContext()
+    return session, {tool.name: tool for tool in build_tools(session, conn)}
 
 
 # --- catalogo ---------------------------------------------------------------
 
 
-def test_violoes_ate_mil_traz_doze_disponiveis(ferramentas) -> None:
-    _, tools = ferramentas
+def test_violoes_ate_mil_traz_doze_disponiveis(toolset) -> None:
+    _, tools = toolset
 
     out = tools["buscar_produtos"].invoke({"categoria": "violoes", "preco_max": 1000})
 
@@ -28,8 +28,8 @@ def test_violoes_ate_mil_traz_doze_disponiveis(ferramentas) -> None:
     assert not ids & {96, 113}, "esgotado e descontinuado nao podem aparecer"
 
 
-def test_inclui_indisponiveis_quando_pedido(ferramentas) -> None:
-    _, tools = ferramentas
+def test_inclui_indisponiveis_quando_pedido(toolset) -> None:
+    _, tools = toolset
 
     out = tools["buscar_produtos"].invoke(
         {"categoria": "5", "preco_max": 1000, "somente_disponiveis": False}
@@ -38,8 +38,8 @@ def test_inclui_indisponiveis_quando_pedido(ferramentas) -> None:
     assert out["total_encontrado"] == 14
 
 
-def test_busca_sem_resultado_orienta_ajuste(ferramentas) -> None:
-    _, tools = ferramentas
+def test_busca_sem_resultado_orienta_ajuste(toolset) -> None:
+    _, tools = toolset
 
     out = tools["buscar_produtos"].invoke({"termo": "saxofone"})
 
@@ -48,15 +48,15 @@ def test_busca_sem_resultado_orienta_ajuste(ferramentas) -> None:
     assert out["observacao"]
 
 
-def test_limite_da_busca_e_limitado_entre_1_e_20(ferramentas) -> None:
-    _, tools = ferramentas
+def test_limite_da_busca_e_limitado_entre_1_e_20(toolset) -> None:
+    _, tools = toolset
 
     assert tools["buscar_produtos"].invoke({"limite": 0})["retornados"] == 1
     assert tools["buscar_produtos"].invoke({"limite": 99})["retornados"] <= 20
 
 
-def test_card_de_produto_nao_expoe_pii(ferramentas) -> None:
-    _, tools = ferramentas
+def test_card_de_produto_nao_expoe_pii(toolset) -> None:
+    _, tools = toolset
 
     out = tools["buscar_produtos"].invoke({"categoria": "violoes"})
 
@@ -65,8 +65,8 @@ def test_card_de_produto_nao_expoe_pii(ferramentas) -> None:
         assert not PII_KEYS & card.keys()
 
 
-def test_detalhe_do_takamine_gd20(ferramentas) -> None:
-    _, tools = ferramentas
+def test_detalhe_do_takamine_gd20(toolset) -> None:
+    _, tools = toolset
 
     out = tools["detalhe_produto"].invoke({"nome_ou_id": "Takamine GD20"})
 
@@ -75,8 +75,8 @@ def test_detalhe_do_takamine_gd20(ferramentas) -> None:
     assert "promocao" not in out, "a promocao do produto 95 esta inativa"
 
 
-def test_detalhe_ignora_acento_e_caixa(ferramentas) -> None:
-    _, tools = ferramentas
+def test_detalhe_ignora_acento_e_caixa(toolset) -> None:
+    _, tools = toolset
 
     out = tools["detalhe_produto"].invoke({"nome_ou_id": "takamine gd20"})
 
@@ -84,8 +84,8 @@ def test_detalhe_ignora_acento_e_caixa(ferramentas) -> None:
     assert out["product_id"] == 95
 
 
-def test_detalhe_por_id_aplica_promocao_ativa(ferramentas) -> None:
-    _, tools = ferramentas
+def test_detalhe_por_id_aplica_promocao_ativa(toolset) -> None:
+    _, tools = toolset
 
     out = tools["detalhe_produto"].invoke({"nome_ou_id": "127"})
 
@@ -93,8 +93,8 @@ def test_detalhe_por_id_aplica_promocao_ativa(ferramentas) -> None:
     assert out["preco_com_desconto"] == "R$ 323,10"
 
 
-def test_detalhe_inexistente_nao_inventa(ferramentas) -> None:
-    _, tools = ferramentas
+def test_detalhe_inexistente_nao_inventa(toolset) -> None:
+    _, tools = toolset
 
     out = tools["detalhe_produto"].invoke({"nome_ou_id": "Saxofone Selmer"})
 
@@ -105,54 +105,54 @@ def test_detalhe_inexistente_nao_inventa(ferramentas) -> None:
 # --- identificacao e pedidos ------------------------------------------------
 
 
-def test_identifica_cliente_pelo_telefone(ferramentas) -> None:
-    sessao, tools = ferramentas
+def test_identifica_cliente_pelo_telefone(toolset) -> None:
+    session, tools = toolset
 
     out = tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
 
     assert out["identificado"] is True
     assert out["primeiro_nome"] == "Pedro"
-    assert sessao.customer_id == 3
+    assert session.customer_id == 3
 
 
-def test_aceita_telefone_com_codigo_do_pais(ferramentas) -> None:
-    _, tools = ferramentas
+def test_aceita_telefone_com_codigo_do_pais(toolset) -> None:
+    _, tools = toolset
 
     out = tools["identificar_cliente"].invoke({"telefone": "5567984321098"})
 
     assert out["identificado"] is True
 
 
-def test_telefone_curto_nao_identifica(ferramentas) -> None:
-    sessao, tools = ferramentas
+def test_telefone_curto_nao_identifica(toolset) -> None:
+    session, tools = toolset
 
     out = tools["identificar_cliente"].invoke({"telefone": "98432"})
 
     assert out["identificado"] is False
     assert out["motivo"] == "telefone incompleto"
-    assert sessao.identified is False
+    assert session.identified is False
 
 
-def test_telefone_desconhecido_limpa_a_sessao(ferramentas) -> None:
-    sessao, tools = ferramentas
+def test_telefone_desconhecido_limpa_a_sessao(toolset) -> None:
+    session, tools = toolset
     tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
 
     out = tools["identificar_cliente"].invoke({"telefone": "(11) 90000-0000"})
 
     assert out["identificado"] is False
-    assert sessao.customer_id is None
+    assert session.customer_id is None
 
 
-def test_pedido_exige_cliente_identificado(ferramentas) -> None:
-    _, tools = ferramentas
+def test_pedido_exige_cliente_identificado(toolset) -> None:
+    _, tools = toolset
 
     out = tools["consultar_pedido"].invoke({})
 
     assert out["erro"] == "cliente_nao_identificado"
 
 
-def test_pedido_de_outro_cliente_nao_e_revelado(ferramentas) -> None:
-    _, tools = ferramentas
+def test_pedido_de_outro_cliente_nao_e_revelado(toolset) -> None:
+    _, tools = toolset
     tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})  # cliente 3
 
     out = tools["consultar_pedido"].invoke({"order_id": 6})  # pedido 6 e do cliente 9
@@ -160,8 +160,8 @@ def test_pedido_de_outro_cliente_nao_e_revelado(ferramentas) -> None:
     assert out["encontrado"] is False
 
 
-def test_pedido_inexistente_recebe_a_mesma_resposta_de_pedido_alheio(ferramentas) -> None:
-    _, tools = ferramentas
+def test_pedido_inexistente_recebe_a_mesma_resposta_de_pedido_alheio(toolset) -> None:
+    _, tools = toolset
     tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
 
     alheio = tools["consultar_pedido"].invoke({"order_id": 6})
@@ -170,8 +170,8 @@ def test_pedido_inexistente_recebe_a_mesma_resposta_de_pedido_alheio(ferramentas
     assert alheio == inexistente, "nao confirmar a existencia de pedido de outro cliente"
 
 
-def test_lista_pedidos_do_cliente(ferramentas) -> None:
-    _, tools = ferramentas
+def test_lista_pedidos_do_cliente(toolset) -> None:
+    _, tools = toolset
     tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
 
     out = tools["consultar_pedido"].invoke({})
@@ -183,8 +183,8 @@ def test_lista_pedidos_do_cliente(ferramentas) -> None:
     assert pedidos[19]["status"] == "cancelado"
 
 
-def test_total_divergente_e_sinalizado_nao_corrigido(ferramentas) -> None:
-    _, tools = ferramentas
+def test_total_divergente_e_sinalizado_nao_corrigido(toolset) -> None:
+    _, tools = toolset
     tools["identificar_cliente"].invoke({"telefone": "(67) 98321-6543"})  # cliente 7
 
     out = tools["consultar_pedido"].invoke({"order_id": 20})
@@ -198,8 +198,8 @@ def test_total_divergente_e_sinalizado_nao_corrigido(ferramentas) -> None:
 # --- politicas --------------------------------------------------------------
 
 
-def test_politica_de_devolucao_com_proveniencia(ferramentas) -> None:
-    _, tools = ferramentas
+def test_politica_de_devolucao_com_proveniencia(toolset) -> None:
+    _, tools = toolset
 
     out = tools["consultar_politicas"].invoke({"pergunta": "me arrependi, posso devolver?"})
     topo = out["trechos"][0]
@@ -210,8 +210,8 @@ def test_politica_de_devolucao_com_proveniencia(ferramentas) -> None:
     assert "7 (sete) dias corridos" in topo["texto"]
 
 
-def test_politica_fora_do_manual_nao_inventa(ferramentas) -> None:
-    _, tools = ferramentas
+def test_politica_fora_do_manual_nao_inventa(toolset) -> None:
+    _, tools = toolset
 
     out = tools["consultar_politicas"].invoke({"pergunta": "receita de bolo de cenoura"})
 
@@ -222,16 +222,16 @@ def test_politica_fora_do_manual_nao_inventa(ferramentas) -> None:
 # --- pagamento --------------------------------------------------------------
 
 
-def test_pix_aplica_cinco_por_cento(ferramentas) -> None:
-    _, tools = ferramentas
+def test_pix_aplica_cinco_por_cento(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 1000, "forma": "pix"})
 
     assert out["valor_final"] == "R$ 950,00"
 
 
-def test_pix_nao_acumula_com_preco_promocional(ferramentas) -> None:
-    _, tools = ferramentas
+def test_pix_nao_acumula_com_preco_promocional(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke(
         {"valor": 359, "forma": "pix", "preco_ja_promocional": True}
@@ -241,16 +241,16 @@ def test_pix_nao_acumula_com_preco_promocional(ferramentas) -> None:
     assert out["valor_final"] == "R$ 359,00"
 
 
-def test_pix_acima_de_dois_mil_avisa_sobre_combinacao(ferramentas) -> None:
-    _, tools = ferramentas
+def test_pix_acima_de_dois_mil_avisa_sobre_combinacao(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 2199, "forma": "pix"})
 
     assert any("2.000" in nota for nota in out["observacoes"])
 
 
-def test_forma_de_pagamento_desconhecida_e_recusada(ferramentas) -> None:
-    _, tools = ferramentas
+def test_forma_de_pagamento_desconhecida_e_recusada(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 500, "forma": "cheque"})
 
@@ -258,14 +258,14 @@ def test_forma_de_pagamento_desconhecida_e_recusada(ferramentas) -> None:
     assert "cheque" not in out["formas_aceitas"]
 
 
-def test_valor_invalido_e_recusado(ferramentas) -> None:
-    _, tools = ferramentas
+def test_valor_invalido_e_recusado(toolset) -> None:
+    _, tools = toolset
 
     assert tools["simular_pagamento"].invoke({"valor": 0, "forma": "pix"})["permitido"] is False
 
 
-def test_doze_vezes_bloqueado_abaixo_da_parcela_minima(ferramentas) -> None:
-    _, tools = ferramentas
+def test_doze_vezes_bloqueado_abaixo_da_parcela_minima(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 849, "forma": "credito", "parcelas": 12})
 
@@ -273,8 +273,8 @@ def test_doze_vezes_bloqueado_abaixo_da_parcela_minima(ferramentas) -> None:
     assert "70,75" in out["motivo"]
 
 
-def test_doze_vezes_permitido_no_limite(ferramentas) -> None:
-    _, tools = ferramentas
+def test_doze_vezes_permitido_no_limite(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 1200, "forma": "credito", "parcelas": 12})
 
@@ -282,16 +282,16 @@ def test_doze_vezes_permitido_no_limite(ferramentas) -> None:
     assert out["valor_parcela"] == "R$ 100,00"
 
 
-def test_parcelas_acima_de_doze_sao_recusadas(ferramentas) -> None:
-    _, tools = ferramentas
+def test_parcelas_acima_de_doze_sao_recusadas(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 5000, "forma": "credito", "parcelas": 13})
 
     assert out["permitido"] is False
 
 
-def test_seis_vezes_exige_parcela_de_oitenta(ferramentas) -> None:
-    _, tools = ferramentas
+def test_seis_vezes_exige_parcela_de_oitenta(toolset) -> None:
+    _, tools = toolset
 
     bloqueado = tools["simular_pagamento"].invoke(
         {"valor": 400, "forma": "credito", "parcelas": 6}
@@ -304,16 +304,16 @@ def test_seis_vezes_exige_parcela_de_oitenta(ferramentas) -> None:
     assert liberado["permitido"] is True
 
 
-def test_tres_vezes_exige_compra_minima_de_cinquenta(ferramentas) -> None:
-    _, tools = ferramentas
+def test_tres_vezes_exige_compra_minima_de_cinquenta(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 49.9, "forma": "credito", "parcelas": 3})
 
     assert out["permitido"] is False
 
 
-def test_debito_nao_parcela(ferramentas) -> None:
-    _, tools = ferramentas
+def test_debito_nao_parcela(toolset) -> None:
+    _, tools = toolset
 
     out = tools["simular_pagamento"].invoke({"valor": 500, "forma": "debito", "parcelas": 3})
 

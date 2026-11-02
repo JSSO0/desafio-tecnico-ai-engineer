@@ -54,18 +54,18 @@ _TERMO = re.compile(r"[a-z0-9]+")
 class PolicyHit:
     secao: str
     secao_pai: str
-    titulo: str
+    title: str
     texto: str
     pagina: int | None
     versao: str | None
     score: float
-    cobertura: float
+    coverage: float
 
     def to_dict(self) -> dict[str, object]:
         return {
             "secao": self.secao,
             "secao_pai": self.secao_pai,
-            "titulo": self.titulo,
+            "titulo": self.title,
             "texto": self.texto,
             "pagina": self.pagina,
             "versao": self.versao,
@@ -73,55 +73,55 @@ class PolicyHit:
         }
 
 
-def extract_terms(pergunta: str) -> list[str]:
-    termos = [
+def extract_terms(question: str) -> list[str]:
+    terms = [
         termo
-        for termo in _TERMO.findall(normalize(pergunta))
+        for termo in _TERMO.findall(normalize(question))
         if len(termo) >= 2 and termo not in STOPWORDS
     ]
-    return list(dict.fromkeys(termos))[:MAX_TERMOS]
+    return list(dict.fromkeys(terms))[:MAX_TERMOS]
 
 
-def build_query(pergunta: str) -> str:
+def build_query(question: str) -> str:
     """Transforma texto livre em expressao FTS segura. Retorna "" quando nao ha termo util."""
-    termos = extract_terms(pergunta)
-    if not termos:
+    terms = extract_terms(question)
+    if not terms:
         return ""
 
-    expressoes: list[str] = []
-    for termo in termos:
-        expressoes.append(f'"{termo}"')
+    expressions: list[str] = []
+    for termo in terms:
+        expressions.append(f'"{termo}"')
         if len(termo) >= PREFIXO_MIN:
-            expressoes.append(f'"{termo[:PREFIXO_MIN]}"*')
-    return " OR ".join(expressoes)
+            expressions.append(f'"{termo[:PREFIXO_MIN]}"*')
+    return " OR ".join(expressions)
 
 
-def _prefixo(termo: str) -> str:
+def _prefix(termo: str) -> str:
     return termo[:PREFIXO_MIN] if len(termo) >= PREFIXO_MIN else termo
 
 
-def _term_weights(conn: sqlite3.Connection, termos: list[str]) -> dict[str, float]:
+def _term_weights(conn: sqlite3.Connection, terms: list[str]) -> dict[str, float]:
     """IDF sobre os blocos do manual: termo raro pesa mais que termo onipresente."""
     total = conn.execute("SELECT COUNT(*) FROM policies").fetchone()[0] or 1
-    pesos: dict[str, float] = {}
-    for termo in termos:
-        prefixo = _prefixo(termo)
-        expressao = f'"{prefixo}"*' if len(termo) >= PREFIXO_MIN else f'"{termo}"'
+    weights: dict[str, float] = {}
+    for termo in terms:
+        prefixo = _prefix(termo)
+        expression = f'"{prefixo}"*' if len(termo) >= PREFIXO_MIN else f'"{termo}"'
         df = conn.execute(
-            "SELECT COUNT(*) FROM policies_fts WHERE policies_fts MATCH ?", (expressao,)
+            "SELECT COUNT(*) FROM policies_fts WHERE policies_fts MATCH ?", (expression,)
         ).fetchone()[0]
-        pesos[termo] = math.log(1 + total / max(df, 1))
-    return pesos
+        weights[termo] = math.log(1 + total / max(df, 1))
+    return weights
 
 
-def search_policies(conn: sqlite3.Connection, pergunta: str, limit: int = 3) -> list[PolicyHit]:
-    termos = extract_terms(pergunta)
-    query = build_query(pergunta)
+def search_policies(conn: sqlite3.Connection, question: str, limit: int = 3) -> list[PolicyHit]:
+    terms = extract_terms(question)
+    query = build_query(question)
     if not query:
         return []
 
     limite = max(1, min(limit, 5))
-    pesos = _term_weights(conn, termos)
+    weights = _term_weights(conn, terms)
     rows = conn.execute(
         """
         SELECT p.secao, p.secao_pai, p.titulo, p.texto, p.pagina, p.versao,
@@ -135,27 +135,27 @@ def search_policies(conn: sqlite3.Connection, pergunta: str, limit: int = 3) -> 
         (query, max(limite * 4, CANDIDATOS_MIN)),
     ).fetchall()
 
-    candidatos: list[PolicyHit] = []
+    candidates: list[PolicyHit] = []
     for row in rows:
         haystack = normalize(f"{row['titulo']} {row['texto']}")
-        titulo = normalize(row["titulo"])
-        cobertura = sum(
-            peso * (TITULO_BOOST if _prefixo(termo) in titulo else 1.0)
-            for termo, peso in pesos.items()
-            if _prefixo(termo) in haystack
+        title = normalize(row["titulo"])
+        coverage = sum(
+            weight * (TITULO_BOOST if _prefix(termo) in title else 1.0)
+            for termo, weight in weights.items()
+            if _prefix(termo) in haystack
         )
-        candidatos.append(
+        candidates.append(
             PolicyHit(
                 secao=row["secao"],
                 secao_pai=row["secao_pai"],
-                titulo=row["titulo"],
+                title=row["titulo"],
                 texto=row["texto"],
                 pagina=row["pagina"],
                 versao=row["versao"],
                 score=row["score"],
-                cobertura=round(cobertura, 4),
+                coverage=round(coverage, 4),
             )
         )
 
-    candidatos.sort(key=lambda hit: (-hit.cobertura, hit.score))
-    return candidatos[:limite]
+    candidates.sort(key=lambda hit: (-hit.coverage, hit.score))
+    return candidates[:limite]

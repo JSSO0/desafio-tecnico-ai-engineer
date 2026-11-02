@@ -22,36 +22,36 @@ def request(url: str, payload: dict[str, Any] | None = None, token: str | None =
 
 
 def open_session(base_url: str) -> str:
-    with request(f"{base_url}/v1/sessions", {}) as resposta:
-        return json.loads(resposta.read())["access_token"]
+    with request(f"{base_url}/v1/sessions", {}) as response:
+        return json.loads(response.read())["access_token"]
 
 
 def parse_sse(body: str) -> list[tuple[str, dict[str, Any]]]:
-    eventos: list[tuple[str, dict[str, Any]]] = []
+    events: list[tuple[str, dict[str, Any]]] = []
     for bloco in body.strip().split("\n\n"):
-        campos: dict[str, str] = {}
+        fields: dict[str, str] = {}
         for linha in bloco.splitlines():
             if ": " in linha:
-                chave, valor = linha.split(": ", 1)
-                campos[chave] = valor
-        if "event" in campos:
-            eventos.append((campos["event"], json.loads(campos["data"])))
-    return eventos
+                key, value = linha.split(": ", 1)
+                fields[key] = value
+        if "event" in fields:
+            events.append((fields["event"], json.loads(fields["data"])))
+    return events
 
 
 def say(base_url: str, token: str, message: str) -> dict[str, Any]:
     """Um turno completo: texto concatenado, ferramentas iniciadas, guard e request_id."""
-    with request(f"{base_url}/v1/chat", {"message": message}, token) as resposta:
-        body = resposta.read().decode("utf-8")
+    with request(f"{base_url}/v1/chat", {"message": message}, token) as response:
+        body = response.read().decode("utf-8")
 
-    texto: list[str] = []
+    text: list[str] = []
     tools: list[str] = []
     guard = None
     request_id = None
 
     for evento, dados in parse_sse(body):
         if evento == "token":
-            texto.append(dados.get("delta", ""))
+            text.append(dados.get("delta", ""))
         elif evento == "tool_call":
             if dados.get("status") == "start" and dados.get("name"):
                 tools.append(dados["name"])
@@ -61,4 +61,4 @@ def say(base_url: str, token: str, message: str) -> dict[str, Any]:
             guard = dados.get("guard") or guard
             request_id = dados.get("request_id")
 
-    return {"texto": "".join(texto), "tools": tools, "guard": guard, "request_id": request_id}
+    return {"texto": "".join(text), "tools": tools, "guard": guard, "request_id": request_id}

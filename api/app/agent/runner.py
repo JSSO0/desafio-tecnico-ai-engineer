@@ -56,16 +56,16 @@ class TurnAccumulator:
 
 
 def _card(tool_name: str, content: str) -> dict[str, Any] | None:
-    tipo = _CARD_TOOLS.get(tool_name)
-    if tipo is None:
+    kind = _CARD_TOOLS.get(tool_name)
+    if kind is None:
         return None
     try:
-        dados = json.loads(content)
+        data = json.loads(content)
     except (json.JSONDecodeError, TypeError):
-        return {"tipo": tipo, "dados": None}
-    if not isinstance(dados, dict):
-        return {"tipo": tipo, "dados": None}
-    return {"tipo": tipo, "dados": dados}
+        return {"tipo": kind, "dados": None}
+    if not isinstance(data, dict):
+        return {"tipo": kind, "dados": None}
+    return {"tipo": kind, "dados": data}
 
 
 class AgentRunner:
@@ -86,9 +86,9 @@ class AgentRunner:
     ) -> AsyncIterator[dict[str, Any]]:
         acc.model = get_settings().llm_model
         agent = build_agent(session_ctx, conn)
-        partes: list[str] = []
-        nomes_por_id: dict[str, str] = {}
-        emitidos: set[str] = set()
+        parts: list[str] = []
+        names_by_id: dict[str, str] = {}
+        emitted: set[str] = set()
 
         async for chunk, _meta in agent.astream(
             {"messages": [*history, HumanMessage(message)]},
@@ -102,43 +102,43 @@ class AgentRunner:
                 # chunks trazem fragmentos de tool call: descarta os sem nome e nao repete o id
                 calls = [call for call in (chunk.tool_calls or []) if call.get("name")]
                 if calls:
-                    partes.clear()  # texto antes de uma chamada nao e resposta final
+                    parts.clear()  # texto antes de uma chamada nao e resposta final
                     for call in calls:
-                        nome = str(call["name"])
-                        chave = str(call.get("id") or f"{nome}:{len(call.get('args') or {})}")
-                        if chave in emitidos:
+                        name = str(call["name"])
+                        key = str(call.get("id") or f"{name}:{len(call.get('args') or {})}")
+                        if key in emitted:
                             continue
-                        emitidos.add(chave)
+                        emitted.add(key)
                         if call.get("id"):
-                            nomes_por_id[str(call["id"])] = nome
-                        acc.tool_calls.append({"name": nome, "args": call.get("args")})
+                            names_by_id[str(call["id"])] = name
+                        acc.tool_calls.append({"name": name, "args": call.get("args")})
                         yield {
                             "event": "tool_call",
                             "data": {
-                                "name": nome,
+                                "name": name,
                                 "args": call.get("args") or {},
                                 "status": "start",
                             },
                         }
 
-                texto = message_text(chunk.content)
-                if texto:
-                    partes.append(texto)
-                    yield {"event": "token", "data": {"delta": texto}}
+                text = message_text(chunk.content)
+                if text:
+                    parts.append(text)
+                    yield {"event": "token", "data": {"delta": text}}
 
             elif getattr(chunk, "type", "") == "tool":
-                conteudo = message_text(chunk.content)
-                acc.tool_output.append(conteudo)
-                nome = nomes_por_id.get(str(getattr(chunk, "tool_call_id", "")), "")
+                payload = message_text(chunk.content)
+                acc.tool_output.append(payload)
+                name = names_by_id.get(str(getattr(chunk, "tool_call_id", "")), "")
                 yield {
                     "event": "tool_call",
-                    "data": {"name": nome, "args": {}, "status": "end"},
+                    "data": {"name": name, "args": {}, "status": "end"},
                 }
-                card = _card(nome, conteudo)
+                card = _card(name, payload)
                 if card is not None:
                     yield {"event": "card", "data": card}
 
-        acc.raw_answer = "".join(partes).strip()
+        acc.raw_answer = "".join(parts).strip()
         acc.answer, acc.guard = enforce_price_grounding(
             acc.raw_answer, "\n".join(acc.tool_output)
         )

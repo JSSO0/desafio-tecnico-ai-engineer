@@ -50,19 +50,19 @@ def _sse(event: str, data: dict[str, Any]) -> str:
 
 def _history(mensagens: list[dict[str, Any]]) -> list[Any]:
     """Historico so com a conversa: resultados de ferramenta ficam fora do contexto."""
-    historico: list[Any] = []
+    history: list[Any] = []
     for item in mensagens:
         if item["role"] == "user":
-            historico.append(HumanMessage(str(item["content"])))
+            history.append(HumanMessage(str(item["content"])))
         elif item["role"] == "assistant":
-            historico.append(AIMessage(str(item["content"])))
-    return historico
+            history.append(AIMessage(str(item["content"])))
+    return history
 
 
-def _rate_headers(limite: int, usados: int) -> dict[str, str]:
+def _rate_headers(limit: int, used: int) -> dict[str, str]:
     return {
-        "X-RateLimit-Limit": str(limite),
-        "X-RateLimit-Remaining": str(max(limite - usados, 0)),
+        "X-RateLimit-Limit": str(limit),
+        "X-RateLimit-Remaining": str(max(limit - used, 0)),
         "X-RateLimit-Reset": "60",
     }
 
@@ -102,30 +102,30 @@ async def chat(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> StreamingResponse:
     request_id = uuid4().hex[:12]
-    limite = settings.max_messages_per_minute
-    janela = store.recent_turns(session.session_id, 60)
-    headers = _stream_headers(_rate_headers(limite, janela + 1))
+    limit = settings.max_messages_per_minute
+    window = store.recent_turns(session.session_id, 60)
+    headers = _stream_headers(_rate_headers(limit, window + 1))
 
-    if janela >= limite:
+    if window >= limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "code": "rate_limited",
-                "message": f"Calma ai! Voce chegou ao limite de {limite} mensagens por minuto.",
+                "message": f"Calma ai! Voce chegou ao limite de {limit} mensagens por minuto.",
             },
-            headers={"Retry-After": "60", **_rate_headers(limite, janela)},
+            headers={"Retry-After": "60", **_rate_headers(limit, window)},
         )
 
-    veredito = screen(payload.message)
-    if veredito.code == "message_too_long":
+    verdict = screen(payload.message)
+    if verdict.code == "message_too_long":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": veredito.code, "message": veredito.response},
+            detail={"code": verdict.code, "message": verdict.response},
         )
 
-    consumo = store.usage(session)
-    headers["X-Budget-Remaining"] = str(consumo["remaining"])
-    if int(consumo["remaining"]) <= 0:
+    spent = store.usage(session)
+    headers["X-Budget-Remaining"] = str(spent["remaining"])
+    if int(spent["remaining"]) <= 0:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
@@ -135,33 +135,37 @@ async def chat(
             headers={"Retry-After": "0", **headers},
         )
 
-    if not veredito.allowed:
-        return _blocked_response(store, session, payload.message, veredito, settings)
+    if not verdict.allowed:
+        return _blocked_response(store, session, payload.message, verdict, settings)
 
     store.append_message(session.session_id, role="user", content=payload.message)
-    historico = _history(store.messages(session.session_id)[:-1])
-    contexto = SessionContext(customer_id=session.customer_id, customer_name=session.customer_name)
+    history = _history(store.messages(session.session_id)[:-1])
+    agent_session = SessionContext(
+        customer_id=session.customer_id, customer_name=session.customer_name
+    )
 
-    async def eventos() -> AsyncIterator[str]:
-        inicio = time.perf_counter()
-        acumulado = TurnAccumulator()
+    async def events() -> AsyncIterator[str]:
+        started = time.perf_counter()
+        accumulator = TurnAccumulator()
         conn = connect(settings.database_path)
         try:
-            async for evento in runner.stream(
-                contexto, historico, payload.message, acumulado, conn
+            async for event in runner.stream(
+                agent_session, history, payload.message, accumulator, conn
             ):
-                yield _sse(evento["event"], evento["data"])
+                yield _sse(event["event"], event["data"])
 
-            latencia = int((time.perf_counter() - inicio) * 1000)
-            outcome = acumulado.to_outcome(latency_ms=latencia)
+            latency = int((time.perf_counter() - started) * 1000)
+            outcome = accumulator.to_outcome(latency_ms=latency)
 
-            store.bind_customer(session.session_id, contexto.customer_id, contexto.customer_name)
+            store.bind_customer(
+                session.session_id, agent_session.customer_id, agent_session.customer_name
+            )
             message_id = store.append_message(
                 session.session_id,
                 role="assistant",
                 content=outcome.answer,
                 guard=outcome.guard,
-                latency_ms=latencia,
+                latency_ms=latency,
             )
             store.add_usage(session.session_id, outcome)
 
@@ -170,7 +174,7 @@ async def chat(
                     logs_dir=settings.logs_dir,
                     request_id=request_id,
                     session_id=session.session_id,
-                    customer_id=contexto.customer_id,
+                    customer_id=agent_session.customer_id,
                     message=payload.message,
                     outcome=outcome,
                 )
@@ -180,7 +184,7 @@ async def chat(
                 "done",
                 {
                     "message_id": message_id,
-                    "latency_ms": latencia,
+                    "latency_ms": latency,
                     "guard": outcome.guard,
                     "request_id": request_id,
                 },
@@ -200,30 +204,30 @@ async def chat(
         finally:
             conn.close()
 
-    return StreamingResponse(eventos(), media_type="text/event-stream", headers=headers)
+    return StreamingResponse(events(), media_type="text/event-stream", headers=headers)
 
 
 def _blocked_response(
     store: RuntimeStore,
     session: Session,
     message: str,
-    veredito: Verdict,
+    verdict: Verdict,
     settings: Settings,
 ) -> StreamingResponse:
     """Guard de entrada atuou: responde sem chamar o provedor e registra o motivo."""
     request_id = uuid4().hex[:12]
-    limite = settings.max_messages_per_minute
-    janela = store.recent_turns(session.session_id, 60)
-    headers = _stream_headers(_rate_headers(limite, janela + 1))
+    limit = settings.max_messages_per_minute
+    window = store.recent_turns(session.session_id, 60)
+    headers = _stream_headers(_rate_headers(limit, window + 1))
 
-    async def eventos() -> AsyncIterator[str]:
+    async def events() -> AsyncIterator[str]:
         store.append_message(session.session_id, role="user", content=message)
-        yield _sse("guard", {"tipo": veredito.code, "acao": "responder_fixo"})
-        yield _sse("token", {"delta": veredito.response or ""})
+        yield _sse("guard", {"tipo": verdict.code, "acao": "responder_fixo"})
+        yield _sse("token", {"delta": verdict.response or ""})
 
         outcome = TurnOutcome(
-            answer=veredito.response or "",
-            guard=veredito.code,
+            answer=verdict.response or "",
+            guard=verdict.code,
             prompt_version="guard",
             model=settings.llm_model,
         )
@@ -255,4 +259,4 @@ def _blocked_response(
             },
         )
 
-    return StreamingResponse(eventos(), media_type="text/event-stream", headers=headers)
+    return StreamingResponse(events(), media_type="text/event-stream", headers=headers)

@@ -61,7 +61,7 @@ def runner():
     app.dependency_overrides.clear()
 
 
-def _sessao(client: TestClient) -> tuple[str, str]:
+def _session(client: TestClient) -> tuple[str, str]:
     corpo = client.post("/v1/sessions").json()
     return corpo["access_token"], corpo["session_id"]
 
@@ -73,7 +73,7 @@ def test_chat_exige_token(client: TestClient) -> None:
 
 
 def test_chat_emite_stream_e_fecha_com_done(client: TestClient, runner) -> None:
-    token, _ = _sessao(client)
+    token, _ = _session(client)
 
     resposta = client.post(
         "/v1/chat",
@@ -93,7 +93,7 @@ def test_chat_emite_stream_e_fecha_com_done(client: TestClient, runner) -> None:
 
 
 def test_texto_concatenado_dos_tokens_e_a_resposta(client: TestClient, runner) -> None:
-    token, session_id = _sessao(client)
+    token, session_id = _session(client)
 
     eventos = _eventos(
         client.post(
@@ -114,7 +114,7 @@ def test_texto_concatenado_dos_tokens_e_a_resposta(client: TestClient, runner) -
 
 
 def test_usage_cresce_depois_do_turno(client: TestClient, runner) -> None:
-    token, session_id = _sessao(client)
+    token, session_id = _session(client)
 
     client.post("/v1/chat", json={"message": "oi"}, headers={"Authorization": f"Bearer {token}"})
     corpo = client.get(
@@ -133,7 +133,7 @@ def test_guard_vai_no_evento_e_na_mensagem_persistida(client: TestClient) -> Non
         guard="preco_sem_ferramenta",
     )
     app.dependency_overrides[get_runner] = lambda: fake
-    token, session_id = _sessao(client)
+    token, session_id = _session(client)
 
     eventos = _eventos(
         client.post(
@@ -154,7 +154,7 @@ def test_guard_vai_no_evento_e_na_mensagem_persistida(client: TestClient) -> Non
 
 
 def test_historico_anterior_e_enviado_ao_agente(client: TestClient, runner) -> None:
-    token, _ = _sessao(client)
+    token, _ = _session(client)
     cabecalho = {"Authorization": f"Bearer {token}"}
 
     client.post("/v1/chat", json={"message": "primeira"}, headers=cabecalho)
@@ -168,7 +168,7 @@ def test_historico_anterior_e_enviado_ao_agente(client: TestClient, runner) -> N
 def test_orcamento_esgotado_devolve_429(
     client: TestClient, runner, store: RuntimeStore
 ) -> None:
-    token, session_id = _sessao(client)
+    token, session_id = _session(client)
     store.add_usage(session_id, TurnOutcome(answer="", tokens_in=10_000_000))
 
     resposta = client.post(

@@ -47,30 +47,30 @@ def make_payment_tools():
         if base <= 0:
             return {"permitido": False, "motivo": "valor invalido"}
 
-        observacoes: list[str] = []
-        desconto = Decimal("0")
-        valor_final = base
+        notes: list[str] = []
+        discount = Decimal("0")
+        final_amount = base
 
         if forma == "pix":
             if preco_ja_promocional:
-                observacoes.append(
+                notes.append(
                     "O desconto de PIX nao se aplica sobre preco ja promocional (politica §6.2)."
                 )
             else:
-                desconto = DESCONTO_PIX
-                valor_final = _money(base * (1 - desconto / 100))
+                discount = DESCONTO_PIX
+                final_amount = _money(base * (1 - discount / 100))
 
             if base > Decimal("2000"):
-                observacoes.append(
+                notes.append(
                     "Acima de R$ 2.000,00 e permitido combinar formas de pagamento (politica §3.1)."
                 )
             return {
                 "permitido": True,
                 "forma": "pix",
                 "valor_base": brl(base),
-                "desconto_percent": float(desconto),
-                "valor_final": brl(valor_final),
-                "observacoes": observacoes,
+                "desconto_percent": float(discount),
+                "valor_final": brl(final_amount),
+                "observacoes": notes,
             }
 
         if forma in {"debito", "boleto"}:
@@ -80,13 +80,13 @@ def make_payment_tools():
                     "motivo": f"{forma} e a vista, em parcela unica (politica §3).",
                 }
             if forma == "boleto":
-                observacoes.append("Compensacao em ate 3 dias uteis (politica §3).")
+                notes.append("Compensacao em ate 3 dias uteis (politica §3).")
             return {
                 "permitido": True,
                 "forma": forma,
                 "valor_base": brl(base),
                 "valor_final": brl(base),
-                "observacoes": observacoes,
+                "observacoes": notes,
             }
 
         # credito
@@ -98,7 +98,7 @@ def make_payment_tools():
             }
 
         if parcelas <= 3:
-            minimo = PARCELA_MINIMA[0][1]
+            minimum = PARCELA_MINIMA[0][1]
             if base < FORMA_MINIMA_3X:
                 return {
                     "permitido": False,
@@ -108,32 +108,32 @@ def make_payment_tools():
                     ),
                 }
         elif parcelas <= 6:
-            minimo = PARCELA_MINIMA[1][1]
+            minimum = PARCELA_MINIMA[1][1]
         else:
-            minimo = PARCELA_MINIMA[2][1]
+            minimum = PARCELA_MINIMA[2][1]
 
-        por_parcela = _money(base / parcelas)
-        if por_parcela < minimo:
+        per_installment = _money(base / parcelas)
+        if per_installment < minimum:
             return {
                 "permitido": False,
                 "motivo": (
-                    f"Em {parcelas}x cada parcela ficaria em {brl(por_parcela)},"
-                    f" abaixo do minimo de {brl(minimo)} para essa faixa."
+                    f"Em {parcelas}x cada parcela ficaria em {brl(per_installment)},"
+                    f" abaixo do minimo de {brl(minimum)} para essa faixa."
                     " Parcelas menores sao possiveis."
                 ),
                 "valor_final": brl(base),
             }
 
-        observacoes.append("Parcelamento sem juros (politica §3).")
+        notes.append("Parcelamento sem juros (politica §3).")
         return {
             "permitido": True,
             "forma": "credito",
             "valor_base": brl(base),
             "valor_final": brl(base),
             "parcelas": parcelas,
-            "valor_parcela": brl(por_parcela),
-            "parcela_minima_aplicada": brl(minimo),
-            "observacoes": observacoes,
+            "valor_parcela": brl(per_installment),
+            "parcela_minima_aplicada": brl(minimum),
+            "observacoes": notes,
         }
 
     return [simular_pagamento]

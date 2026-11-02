@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from app.runtime.store import RuntimeStore
 
 
-def _abrir_sessao(client: TestClient) -> tuple[str, str]:
+def _open_session(client: TestClient) -> tuple[str, str]:
     resposta = client.post("/v1/sessions")
     assert resposta.status_code == 201
     corpo = resposta.json()
@@ -18,7 +18,7 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def test_abre_sessao_com_token_opaco(client: TestClient) -> None:
-    token, session_id = _abrir_sessao(client)
+    token, session_id = _open_session(client)
 
     assert len(token) >= 40
     assert session_id
@@ -40,7 +40,7 @@ def test_token_desconhecido_e_401(client: TestClient) -> None:
 
 
 def test_usage_inicial_zerado(client: TestClient) -> None:
-    token, session_id = _abrir_sessao(client)
+    token, session_id = _open_session(client)
 
     resposta = client.get(f"/v1/sessions/{session_id}/usage", headers=_auth(token))
     corpo = resposta.json()
@@ -51,8 +51,8 @@ def test_usage_inicial_zerado(client: TestClient) -> None:
 
 
 def test_token_nao_acessa_outra_sessao(client: TestClient) -> None:
-    token, _ = _abrir_sessao(client)
-    _, outra = _abrir_sessao(client)
+    token, _ = _open_session(client)
+    _, outra = _open_session(client)
 
     resposta = client.get(f"/v1/sessions/{outra}/usage", headers=_auth(token))
 
@@ -61,7 +61,7 @@ def test_token_nao_acessa_outra_sessao(client: TestClient) -> None:
 
 
 def test_encerrar_revoga_token_e_apaga_historico(client: TestClient) -> None:
-    token, session_id = _abrir_sessao(client)
+    token, session_id = _open_session(client)
     client.post("/v1/chat", json={"message": "oi"}, headers=_auth(token))
 
     encerrar = client.delete(f"/v1/sessions/{session_id}", headers=_auth(token))
@@ -77,7 +77,7 @@ def test_encerrar_revoga_token_e_apaga_historico(client: TestClient) -> None:
 def test_token_expirado_e_401(
     client: TestClient, store: RuntimeStore, tmp_path: Path
 ) -> None:
-    token, session_id = _abrir_sessao(client)
+    token, session_id = _open_session(client)
     with sqlite3.connect(store.path) as conn:
         conn.execute(
             "UPDATE sessions SET expires_at = ? WHERE session_id = ?",

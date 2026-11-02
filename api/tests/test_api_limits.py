@@ -42,7 +42,7 @@ def runner():
     app.dependency_overrides.clear()
 
 
-def _sessao(client: TestClient) -> tuple[str, str]:
+def _session(client: TestClient) -> tuple[str, str]:
     corpo = client.post("/v1/sessions").json()
     return corpo["access_token"], corpo["session_id"]
 
@@ -52,7 +52,7 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def test_injection_responde_sem_chamar_o_modelo(client: TestClient, runner) -> None:
-    token, _ = _sessao(client)
+    token, _ = _session(client)
 
     resposta = client.post(
         "/v1/chat",
@@ -70,7 +70,7 @@ def test_injection_responde_sem_chamar_o_modelo(client: TestClient, runner) -> N
 
 
 def test_rate_limit_por_minuto(client: TestClient, runner) -> None:
-    token, _ = _sessao(client)
+    token, _ = _session(client)
     cabecalho = _auth(token)
 
     for _ in range(10):
@@ -85,7 +85,7 @@ def test_rate_limit_por_minuto(client: TestClient, runner) -> None:
 
 
 def test_cabecalhos_de_limite_na_resposta(client: TestClient, runner) -> None:
-    token, _ = _sessao(client)
+    token, _ = _session(client)
 
     resposta = client.post("/v1/chat", json={"message": "oi"}, headers=_auth(token))
 
@@ -95,7 +95,7 @@ def test_cabecalhos_de_limite_na_resposta(client: TestClient, runner) -> None:
 
 
 def test_mensagem_longa_devolve_400(client: TestClient, runner) -> None:
-    token, _ = _sessao(client)
+    token, _ = _session(client)
 
     resposta = client.post("/v1/chat", json={"message": "a" * 900}, headers=_auth(token))
 
@@ -105,7 +105,7 @@ def test_mensagem_longa_devolve_400(client: TestClient, runner) -> None:
 
 
 def test_auditoria_registra_o_turno(client: TestClient, runner, settings) -> None:
-    token, session_id = _sessao(client)
+    token, session_id = _session(client)
 
     resposta = client.post(
         "/v1/chat",

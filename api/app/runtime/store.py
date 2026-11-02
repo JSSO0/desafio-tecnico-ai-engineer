@@ -80,15 +80,16 @@ class RuntimeStore:
             if expires <= _now():
                 raise SessionError("expired_token", "Sessao expirada. Abra uma nova.")
 
-            nova = (_now() + timedelta(minutes=ttl_minutes)).isoformat()
+            next_expiry = (_now() + timedelta(minutes=ttl_minutes)).isoformat()
             conn.execute(
-                "UPDATE sessions SET expires_at = ? WHERE session_id = ?", (nova, row["session_id"])
+                "UPDATE sessions SET expires_at = ? WHERE session_id = ?",
+                (next_expiry, row["session_id"]),
             )
             conn.commit()
 
         return Session(
             session_id=row["session_id"],
-            expires_at=nova,
+            expires_at=next_expiry,
             customer_id=row["customer_id"],
             customer_name=row["customer_name"],
             budget_tokens=row["budget_tokens"],
@@ -141,14 +142,14 @@ class RuntimeStore:
                 (session.session_id,),
             ).fetchone()
 
-        usado = int(row["tin"]) + int(row["tout"])
+        consumed = int(row["tin"]) + int(row["tout"])
         return {
             "tokens_in": int(row["tin"]),
             "tokens_out": int(row["tout"]),
-            "tokens_total": usado,
+            "tokens_total": consumed,
             "turnos": int(row["turnos"]),
             "budget_tokens": session.budget_tokens,
-            "remaining": max(session.budget_tokens - usado, 0),
+            "remaining": max(session.budget_tokens - consumed, 0),
         }
 
     # --- mensagens -------------------------------------------------------
@@ -184,12 +185,12 @@ class RuntimeStore:
 
     def recent_turns(self, session_id: str, window_seconds: int = 60) -> int:
         """Mensagens do usuario na janela: base do rate limit por sessao."""
-        limite = (_now() - timedelta(seconds=window_seconds)).isoformat()
+        cutoff = (_now() - timedelta(seconds=window_seconds)).isoformat()
         with closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT COUNT(*) FROM messages"
                 " WHERE session_id = ? AND role = 'user' AND created_at > ?",
-                (session_id, limite),
+                (session_id, cutoff),
             ).fetchone()
         return int(row[0])
 
@@ -202,11 +203,11 @@ class RuntimeStore:
             conn.commit()
 
     def creations_by_ip(self, client_ip: str, window_minutes: int = 60) -> int:
-        limite = (_now() - timedelta(minutes=window_minutes)).isoformat()
+        cutoff = (_now() - timedelta(minutes=window_minutes)).isoformat()
         with closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT COUNT(*) FROM session_creations"
                 " WHERE client_ip = ? AND created_at > ?",
-                (client_ip, limite),
+                (client_ip, cutoff),
             ).fetchone()
         return int(row[0])

@@ -21,7 +21,7 @@ class PolicyChunk:
     secao: str
     secao_pai: str
     titulo: str
-    texto: str
+    text: str
     pagina: int | None
     versao: str | None
     atualizado_em: str | None
@@ -76,8 +76,8 @@ def _split_blocks(body: str) -> list[tuple[str, str, str]]:
         blocks.append(("", "", lead))
     for index, heading in enumerate(headings):
         end = headings[index + 1].start() if index + 1 < len(headings) else len(body)
-        texto = body[heading.end() : end].strip()
-        blocks.append((heading.group(1), heading.group(2).strip(), texto))
+        text = body[heading.end() : end].strip()
+        blocks.append((heading.group(1), heading.group(2).strip(), text))
     return blocks
 
 
@@ -87,15 +87,15 @@ def parse_policy_file(path: Path) -> list[PolicyChunk]:
     pagina = int(meta["pagina"]) if meta.get("pagina", "").isdigit() else None
 
     chunks: list[PolicyChunk] = []
-    for secao, titulo, texto in _split_blocks(body):
-        if not texto:
+    for secao, titulo, text in _split_blocks(body):
+        if not text:
             continue
         chunks.append(
             PolicyChunk(
                 secao=secao or secao_pai,
                 secao_pai=secao_pai,
                 titulo=titulo or meta.get("titulo", ""),
-                texto=texto,
+                text=text,
                 pagina=pagina,
                 versao=_text(meta.get("versao")),
                 atualizado_em=_text(meta.get("atualizado_em")),
@@ -241,7 +241,7 @@ def _insert_policies(conn: sqlite3.Connection, policies_dir: Path) -> int:
                 chunk.secao,
                 chunk.secao_pai,
                 chunk.titulo,
-                chunk.texto,
+                chunk.text,
                 chunk.pagina,
                 chunk.versao,
                 chunk.atualizado_em,
@@ -250,7 +250,7 @@ def _insert_policies(conn: sqlite3.Connection, policies_dir: Path) -> int:
         )
         conn.execute(
             "INSERT INTO policies_fts (rowid, secao, titulo, texto) VALUES (?, ?, ?, ?)",
-            (cursor.lastrowid, chunk.secao, chunk.titulo, chunk.texto),
+            (cursor.lastrowid, chunk.secao, chunk.titulo, chunk.text),
         )
     return len(chunks)
 

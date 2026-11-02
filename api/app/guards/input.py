@@ -26,7 +26,7 @@ _INJECTION = (
     re.compile(r"jailbreak|dan mode", re.IGNORECASE),
 )
 
-RECUSA_INJECTION = (
+REFUSAL_INJECTION = (
     "Não consigo seguir esse tipo de pedido, mas posso ajudar com instrumentos: "
     "catálogo, preço, pedido, troca ou frete. O que você precisa?"
 )
@@ -40,16 +40,16 @@ class Verdict:
 
 
 def screen(message: str) -> Verdict:
-    texto = (message or "").strip()
+    text = (message or "").strip()
 
-    if len(texto) > MAX_CHARS:
+    if len(text) > MAX_CHARS:
         return Verdict(
             allowed=False,
             code="message_too_long",
-            response=f"Mensagem muito longa ({len(texto)} caracteres). O limite é {MAX_CHARS}.",
+            response=f"Mensagem muito longa ({len(text)} caracteres). O limite é {MAX_CHARS}.",
         )
 
-    if any(padrao.search(texto) for padrao in _INJECTION):
-        return Verdict(allowed=False, code="injection_attempt", response=RECUSA_INJECTION)
+    if any(pattern.search(text) for pattern in _INJECTION):
+        return Verdict(allowed=False, code="injection_attempt", response=REFUSAL_INJECTION)
 
     return Verdict(allowed=True)

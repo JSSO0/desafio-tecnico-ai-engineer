@@ -33,9 +33,9 @@ def create_session(
     store: Annotated[RuntimeStore, Depends(get_store)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SessionCreated:
-    origem = request.client.host if request.client else "desconhecida"
+    origin = request.client.host if request.client else "desconhecida"
 
-    if store.creations_by_ip(origem) >= settings.max_sessions_per_hour:
+    if store.creations_by_ip(origin) >= settings.max_sessions_per_hour:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
@@ -45,7 +45,7 @@ def create_session(
             headers={"Retry-After": "3600"},
         )
 
-    store.register_creation(origem)
+    store.register_creation(origin)
     token, session = store.create(settings.session_ttl_minutes, settings.budget_tokens)
     return SessionCreated(
         access_token=token,

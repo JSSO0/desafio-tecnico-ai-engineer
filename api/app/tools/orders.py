@@ -26,8 +26,8 @@ def _order_row(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
         (row["order_id"],),
     ).fetchall()
 
-    soma = sum(item["quantity"] * item["price_brl"] for item in items)
-    pedido: dict[str, object] = {
+    total = sum(item["quantity"] * item["price_brl"] for item in items)
+    order: dict[str, object] = {
         "pedido": row["order_id"],
         "status": _STATUS_LABEL.get(row["status"], row["status"]),
         "data": row["order_date"],
@@ -38,19 +38,19 @@ def _order_row(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
         ],
     }
     if row["tracking_code"]:
-        pedido["rastreio"] = row["tracking_code"]
+        order["rastreio"] = row["tracking_code"]
     if row["estimated_delivery"]:
-        pedido["previsao_entrega"] = row["estimated_delivery"]
+        order["previsao_entrega"] = row["estimated_delivery"]
     if row["notes"]:
-        pedido["observacao"] = row["notes"]
-    if abs(soma - row["total_brl"]) > 0.01:
+        order["observacao"] = row["notes"]
+    if abs(total - row["total_brl"]) > 0.01:
         # divergencia conhecida da base: reportar o total gravado, nunca recalcular
-        pedido["total_divergente"] = True
-        pedido["instrucao"] = (
+        order["total_divergente"] = True
+        order["instrucao"] = (
             "O total gravado difere da soma dos itens. Informe o total do pedido e, se o cliente"
             " questionar, diga que vai confirmar com a equipe."
         )
-    return pedido
+    return order
 
 
 def make_order_tools(conn: sqlite3.Connection, session: SessionContext):

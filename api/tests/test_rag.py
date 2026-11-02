@@ -100,7 +100,7 @@ def test_search_is_bounded_and_ordered(conn: sqlite3.Connection) -> None:
     hits = search_policies(conn, "devolução", limit=2)
 
     assert 0 < len(hits) <= 2
-    assert hits[0].cobertura >= hits[-1].cobertura
+    assert hits[0].coverage >= hits[-1].coverage
 
 
 def test_search_clamps_limit_to_supported_range(conn: sqlite3.Connection) -> None:

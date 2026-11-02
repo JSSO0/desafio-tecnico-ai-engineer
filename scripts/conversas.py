@@ -19,7 +19,7 @@ from api_client import open_session, say  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DESTINO = REPO_ROOT / "docs" / "exemplos"
 
-CONVERSAS = [
+CONVERSATIONS = [
     {
         "arquivo": "01-catalogo-e-preco",
         "titulo": "Catálogo com filtro de preço e preço de um modelo",
@@ -78,25 +78,25 @@ CONVERSAS = [
 ]
 
 
-def _rodar(base_url: str, conversa: dict[str, Any]) -> list[dict[str, Any]]:
+def _run(base_url: str, conversation: dict[str, Any]) -> list[dict[str, Any]]:
     token = open_session(base_url)
     return [
         {"pergunta": mensagem, **say(base_url, token, mensagem)}
-        for mensagem in conversa["turnos"]
+        for mensagem in conversation["turnos"]
     ]
 
 
-def _citacao(ferramentas: list[str]) -> str:
-    return ", ".join(f"`{nome}`" for nome in ferramentas)
+def _citacao(tools: list[str]) -> str:
+    return ", ".join(f"`{nome}`" for nome in tools)
 
 
 def _markdown(
-    conversa: dict[str, Any], turnos: list[dict[str, Any]], base_url: str
+    conversation: dict[str, Any], rounds: list[dict[str, Any]], base_url: str
 ) -> str:
-    linhas = [
-        f"# {conversa['titulo']}",
+    lines = [
+        f"# {conversation['titulo']}",
         "",
-        f"> {conversa['foco']}",
+        f"> {conversation['foco']}",
         "",
         "Transcrição gerada por [`scripts/conversas.py`](../../scripts/conversas.py) contra a API"
         f" real (`{base_url}/v1/chat`, provedor definido no `.env`).",
@@ -105,44 +105,44 @@ def _markdown(
         "",
     ]
 
-    for turno in turnos:
-        linhas.append(f"**Cliente:** {turno['pergunta']}")
-        linhas.append("")
+    for turno in rounds:
+        lines.append(f"**Cliente:** {turno['pergunta']}")
+        lines.append("")
         for indice, paragrafo in enumerate(turno["texto"].split("\n")):
-            linhas.append(f"**Assistente:** {paragrafo}" if indice == 0 else paragrafo)
+            lines.append(f"**Assistente:** {paragrafo}" if indice == 0 else paragrafo)
         if turno["tools"]:
-            linhas.append("")
-            linhas.append(f"> consultou: {_citacao(turno['tools'])}")
+            lines.append("")
+            lines.append(f"> consultou: {_citacao(turno['tools'])}")
         if turno["guard"]:
-            linhas.append("")
-            linhas.append(f"> guard: `{turno['guard']}`")
-        linhas.append("")
-        linhas.append("---")
-        linhas.append("")
+            lines.append("")
+            lines.append(f"> guard: `{turno['guard']}`")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
 
-    ferramentas = sorted({nome for turno in turnos for nome in turno["tools"]})
-    guards = sorted({turno["guard"] for turno in turnos if turno["guard"]})
-    linhas += [
+    tools = sorted({nome for turno in rounds for nome in turno["tools"]})
+    guards = sorted({turno["guard"] for turno in rounds if turno["guard"]})
+    lines += [
         "## O que aconteceu",
         "",
-        f"- **Ferramentas chamadas:** {_citacao(ferramentas) if ferramentas else 'nenhuma'}",
+        f"- **Ferramentas chamadas:** {_citacao(tools) if tools else 'nenhuma'}",
         f"- **Guard acionado:** {', '.join(f'`{g}`' for g in guards) if guards else 'não'}",
         "- **Requisições:** "
-        + ", ".join(t["request_id"] for t in turnos if t["request_id"]),
+        + ", ".join(t["request_id"] for t in rounds if t["request_id"]),
         "",
     ]
-    return "\n".join(linhas)
+    return "\n".join(lines)
 
 
 def main(base_url: str = "http://127.0.0.1:8000") -> int:
     DESTINO.mkdir(parents=True, exist_ok=True)
 
-    for conversa in CONVERSAS:
-        turnos = _rodar(base_url, conversa)
-        caminho = DESTINO / f"{conversa['arquivo']}.md"
-        caminho.write_text(_markdown(conversa, turnos, base_url), encoding="utf-8")
-        usadas = sorted({nome for turno in turnos for nome in turno["tools"]})
-        print(f"{caminho.name:34} turnos={len(turnos)} tools={','.join(usadas) or '-'}")
+    for conversation in CONVERSATIONS:
+        rounds = _run(base_url, conversation)
+        path = DESTINO / f"{conversation['arquivo']}.md"
+        path.write_text(_markdown(conversation, rounds, base_url), encoding="utf-8")
+        used = sorted({nome for turno in rounds for nome in turno["tools"]})
+        print(f"{path.name:34} turnos={len(rounds)} tools={','.join(used) or '-'}")
 
     return 0
 
