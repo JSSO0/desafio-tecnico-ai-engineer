@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -16,6 +16,7 @@ RUN uv sync --no-install-project --no-cache
 
 COPY api ./api
 COPY scripts ./scripts
+COPY evals ./evals
 COPY data ./data
 
 RUN useradd --create-home --uid 10001 app \
