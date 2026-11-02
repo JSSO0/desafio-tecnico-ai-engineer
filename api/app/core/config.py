@@ -23,8 +23,13 @@ class Settings(BaseSettings):
     deepseek_api_key: str | None = None
 
     database_path: Path = Path("/data/loja.db")
+    runtime_path: Path = Path("/data/runtime.db")
     data_dir: Path = Path("/app/data")
     logs_dir: Path = Path("/app/logs")
+
+    session_ttl_minutes: int = 30
+    budget_tokens: int = 60_000
+    max_messages_per_minute: int = 10
 
     @property
     def policies_dir(self) -> Path:
