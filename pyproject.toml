@@ -25,7 +25,12 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "I", "UP", "B", "SIM", "PLR0913"]
+
+[tool.ruff.lint.pylint]
+# lista longa de parametros e o cheiro mais caro de ler e o mais facil de reintroduzir:
+# vira build quebrado, nao comentario de revisao. O maior caso atual tem 6.
+max-args = 6
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
