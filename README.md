@@ -30,10 +30,14 @@ cp .env.example .env      # preencha a chave do provedor escolhido
 docker compose up --build
 ```
 
+- **Interface:** <http://localhost:8080>
 - API: <http://localhost:8000>
 - Swagger: <http://localhost:8000/docs>
 - Health: <http://localhost:8000/healthz> · <http://localhost:8000/readyz>
 - Configuração ativa: <http://localhost:8000/v1/meta>
+
+Para desenvolver a interface sem Docker: `cd web && python serve.py` (sobe em
+<http://localhost:5173>). Detalhes em [`web/README.md`](web/README.md).
 
 ### Trocar de provedor
 
@@ -225,8 +229,9 @@ api/            # FastAPI + agente
     api/        # rotas
     core/       # configuração
   tests/
+web/            # interface (React 18 + htm, sem build step) + nginx
 data/           # CSVs e PDF originais (intocados)
-scripts/        # utilitários (build_db, smoke tests)
+scripts/        # utilitários (build_db, eval, conversas)
 docs/           # arquitetura (C4), ADRs, exemplos de conversa
 evals/          # casos de teste do agente
 memory-bank/    # contexto do projeto para agentes de código
