@@ -46,6 +46,15 @@ class Settings(BaseSettings):
         return self.data_dir / "policies"
 
     @property
+    def allowed_origins(self) -> list[str]:
+        """Origem liberada para a interface. Lista vazia desliga o CORS."""
+        return [
+            origem.strip()
+            for origem in self.cors_origins.split(",")
+            if origem.strip()
+        ]
+
+    @property
     def provider_api_key(self) -> str | None:
         raw = {
             "openai": self.openai_api_key,

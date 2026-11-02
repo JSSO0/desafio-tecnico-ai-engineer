@@ -20,6 +20,8 @@ import math
 import re
 import sqlite3
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 
 from app.core.text import normalize
 
@@ -28,20 +30,22 @@ PREFIXO_MIN = 5
 CANDIDATOS_MIN = 10
 TITULO_BOOST = 2.0
 
-_STOPWORDS = frozenset(
-    " ".join(
-        (
-            "a ao aos as com como da das de do dos e em entre era essa esse esta este eu foi ha",
-            "isso isto ja mais mas me meu minha meus minhas na nao nas no nos o os ou para pela",
-            "pelas pelo pelos por pode podem poderia posso pra pro qual quais quando quanto",
-            "quantos que quem quero gostaria se sem ser seu sua seus suas so sou tambem tem tenho",
-            "ter tu um uma voce voces vou fazer saber preciso onde",
-            # cortesia e verbos genericos de pergunta: nao carregam intencao e roubam o topo
-            "funciona funcionar funcionamento tempo informacao informacoes duvida duvidas",
-            "ajuda obrigado obrigada oi ola favor tudo bem bom boa blz tchau dia dias",
-        )
-    ).split()
-)
+STOPWORDS_PATH = Path(__file__).with_name("stopwords.txt")
+
+
+@lru_cache
+def load_stopwords() -> frozenset[str]:
+    """Stopwords ficam em arquivo porque sao dado de dominio, ajustado por observacao."""
+    linhas = STOPWORDS_PATH.read_text(encoding="utf-8").splitlines()
+    return frozenset(
+        palavra
+        for linha in linhas
+        if not linha.lstrip().startswith("#")
+        for palavra in linha.split()
+    )
+
+
+STOPWORDS = load_stopwords()
 
 _TERMO = re.compile(r"[a-z0-9]+")
 
@@ -73,7 +77,7 @@ def extract_terms(pergunta: str) -> list[str]:
     termos = [
         termo
         for termo in _TERMO.findall(normalize(pergunta))
-        if len(termo) >= 2 and termo not in _STOPWORDS
+        if len(termo) >= 2 and termo not in STOPWORDS
     ]
     return list(dict.fromkeys(termos))[:MAX_TERMOS]
 

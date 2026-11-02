@@ -3,8 +3,8 @@ import sqlite3
 import pytest
 
 from app.rag.policies import (
-    _STOPWORDS,
     MAX_TERMOS,
+    STOPWORDS,
     build_query,
     extract_terms,
     normalize,
@@ -135,9 +135,9 @@ def test_hit_carries_provenance(conn: sqlite3.Connection) -> None:
 
 def test_stopwords_are_clean_tokens() -> None:
     """Regressao: uma lista mal construida virava tokens como "('a" e nada era filtrado."""
-    assert "posso" in _STOPWORDS
-    assert "funciona" in _STOPWORDS
-    sujos = sorted(t for t in _STOPWORDS if not (t.isalpha() or t.isdigit()))
+    assert "posso" in STOPWORDS
+    assert "funciona" in STOPWORDS
+    sujos = sorted(t for t in STOPWORDS if not (t.isalpha() or t.isdigit()))
     assert sujos == []
 
 

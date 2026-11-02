@@ -52,11 +52,11 @@ app.include_router(health_router)
 app.include_router(sessions_router)
 app.include_router(chat_router)
 
-_origens = [origem.strip() for origem in settings.cors_origins.split(",") if origem.strip()]
-if _origens:
+origins = settings.allowed_origins
+if origins:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_origens,
+        allow_origins=origins,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
         # sem isto o navegador nao consegue ler os cabecalhos de limite e orcamento
