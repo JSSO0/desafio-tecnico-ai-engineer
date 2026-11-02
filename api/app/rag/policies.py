@@ -19,8 +19,9 @@ from __future__ import annotations
 import math
 import re
 import sqlite3
-import unicodedata
 from dataclasses import dataclass
+
+from app.core.text import normalize
 
 MAX_TERMOS = 12
 PREFIXO_MIN = 5
@@ -66,12 +67,6 @@ class PolicyHit:
             "versao": self.versao,
             "score": self.score,
         }
-
-
-def normalize(text: str) -> str:
-    """Minusculas e sem acento, para casar com o tokenizer do indice."""
-    decomposed = unicodedata.normalize("NFKD", text or "")
-    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).lower()
 
 
 def extract_terms(pergunta: str) -> list[str]:

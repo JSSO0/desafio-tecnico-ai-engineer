@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from app.core.text import normalize
+
 
 def connect(path: Path, *, readonly: bool = True) -> sqlite3.Connection:
     """Conexao SQLite. Por padrao, somente leitura: as ferramentas do agente nao escrevem."""
@@ -12,4 +14,6 @@ def connect(path: Path, *, readonly: bool = True) -> sqlite3.Connection:
         conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # comparacao de texto livre sem depender de acento: 'violao' encontra 'Violão'
+    conn.create_function("unaccent", 1, lambda value: normalize(value or ""), deterministic=True)
     return conn
