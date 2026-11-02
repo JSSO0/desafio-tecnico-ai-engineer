@@ -34,8 +34,10 @@ class Settings(BaseSettings):
     audit_enabled: bool = True
 
     # origens liberadas para a interface (lista separada por virgula). Vazio desliga o CORS.
+    # 5173 = serve.py de desenvolvimento · 8080 = container nginx do compose
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:8080,http://127.0.0.1:8080,"
         "http://localhost:3000,http://localhost:4173"
     )
 

@@ -36,3 +36,10 @@ def test_cors_aceita_preflight_do_chat(client: TestClient) -> None:
     assert resposta.status_code == 200
     assert resposta.headers["access-control-allow-origin"] == ORIGEM
     assert "authorization" in resposta.headers["access-control-allow-headers"].lower()
+
+def test_cors_libera_origem_do_container(client: TestClient) -> None:
+    origem = "http://localhost:8080"
+
+    resposta = client.get("/v1/meta", headers={"Origin": origem})
+
+    assert resposta.headers["access-control-allow-origin"] == origem
