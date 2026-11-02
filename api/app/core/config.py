@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     max_sessions_per_hour: int = 20
     audit_enabled: bool = True
 
+    # origens liberadas para a interface (lista separada por virgula). Vazio desliga o CORS.
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:3000,http://localhost:4173"
+    )
+
     @property
     def policies_dir(self) -> Path:
         return self.data_dir / "policies"

@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.prompts import active_prompt_version
 from app.api.chat import router as chat_router
@@ -46,6 +47,22 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(sessions_router)
 app.include_router(chat_router)
+
+_origens = [origem.strip() for origem in settings.cors_origins.split(",") if origem.strip()]
+if _origens:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origens,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+        # sem isto o navegador nao consegue ler os cabecalhos de limite e orcamento
+        expose_headers=[
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+            "X-Budget-Remaining",
+        ],
+    )
 
 
 @app.get("/v1/meta", tags=["ops"], summary="Configuração ativa do agente")
