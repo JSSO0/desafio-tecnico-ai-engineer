@@ -14,9 +14,10 @@ import argparse
 import json
 import unicodedata
 import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
+
+from api_client import open_session, say
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CASOS_PADRAO = REPO_ROOT / "evals" / "casos.jsonl"
@@ -27,72 +28,29 @@ def normalize(text: str) -> str:
     return "".join(ch for ch in decomposto if not unicodedata.combining(ch)).lower()
 
 
-def _request(url: str, payload: dict[str, Any] | None = None, token: str | None = None):
-    data = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    metodo = "POST" if data else "GET"
-    req = urllib.request.Request(url, data=data, headers=headers, method=metodo)
-    return urllib.request.urlopen(req, timeout=180)
+def _missing(texto: str, esperados: list[str]) -> list[str]:
+    return [f"faltou {item!r}" for item in esperados if normalize(item) not in texto]
 
 
-def abrir_sessao(base_url: str) -> str:
-    with _request(f"{base_url}/v1/sessions", {}) as resposta:
-        return json.loads(resposta.read())["access_token"]
+def _forbidden(texto: str, proibidos: list[str]) -> list[str]:
+    return [f"nao podia conter {item!r}" for item in proibidos if normalize(item) in texto]
 
 
-def falar(base_url: str, token: str, mensagem: str) -> dict[str, Any]:
-    """Um turno completo: devolve texto concatenado, ferramentas e guard."""
-    texto: list[str] = []
-    tools: list[str] = []
-    guard = None
-    request_id = None
-
-    with _request(f"{base_url}/v1/chat", {"message": mensagem}, token) as resposta:
-        corpo = resposta.read().decode("utf-8")
-
-    for bloco in corpo.strip().split("\n\n"):
-        campos = {}
-        for linha in bloco.splitlines():
-            if ": " in linha:
-                chave, valor = linha.split(": ", 1)
-                campos[chave] = valor
-        if "event" not in campos:
-            continue
-
-        dados = json.loads(campos["data"])
-        if campos["event"] == "token":
-            texto.append(dados.get("delta", ""))
-        elif campos["event"] == "tool_call":
-            iniciou = dados.get("status") == "start" and dados.get("name")
-            if iniciou:
-                tools.append(dados["name"])
-        elif campos["event"] == "guard":
-            guard = dados.get("tipo")
-        elif campos["event"] == "done":
-            guard = dados.get("guard") or guard
-            request_id = dados.get("request_id")
-
-    return {"texto": "".join(texto), "tools": tools, "guard": guard, "request_id": request_id}
+def _missing_tools(usadas: list[str], esperadas: list[str]) -> list[str]:
+    return [f"nao chamou {tool}" for tool in esperadas if tool not in usadas]
 
 
 def avaliar(caso: dict[str, Any], resultado: dict[str, Any]) -> list[str]:
-    falhas: list[str] = []
-    texto = normalize(resultado["texto"])
-
-    for trecho in caso.get("deve_conter", []):
-        if normalize(trecho) not in texto:
-            falhas.append(f"faltou {trecho!r}")
-    for trecho in caso.get("nao_deve_conter", []):
-        if normalize(trecho) in texto:
-            falhas.append(f"nao podia conter {trecho!r}")
-    for tool in caso.get("tools_esperadas", []):
-        if tool not in resultado["tools"]:
-            falhas.append(f"nao chamou {tool}")
-    if caso.get("guard_esperado") and resultado["guard"] != caso["guard_esperado"]:
-        falhas.append(f"guard {resultado['guard']!r} != {caso['guard_esperado']!r}")
-
+    """Cada regra e uma funcao pura; sem laco aninhado e sem acessar chave que pode faltar."""
+    texto = normalize(resultado.get("texto", ""))
+    falhas = [
+        *_missing(texto, caso.get("deve_conter", [])),
+        *_forbidden(texto, caso.get("nao_deve_conter", [])),
+        *_missing_tools(resultado.get("tools", []), caso.get("tools_esperadas", [])),
+    ]
+    esperado = caso.get("guard_esperado")
+    if esperado and resultado.get("guard") != esperado:
+        falhas.append(f"guard {resultado.get('guard')!r} != {esperado!r}")
     return falhas
 
 
@@ -112,11 +70,11 @@ def main(argv: list[str] | None = None) -> int:
 
     resultados = []
     for caso in casos:
-        token = abrir_sessao(args.base_url)
+        token = open_session(args.base_url)
         acumulado = {"texto": "", "tools": [], "guard": None, "request_id": None}
         try:
             for mensagem in caso["mensagens"]:
-                turno = falar(args.base_url, token, mensagem)
+                turno = say(args.base_url, token, mensagem)
                 acumulado["texto"] += "\n" + turno["texto"]
                 acumulado["tools"] += turno["tools"]
                 acumulado["guard"] = turno["guard"] or acumulado["guard"]

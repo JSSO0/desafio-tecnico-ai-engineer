@@ -14,7 +14,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from eval import abrir_sessao, falar  # noqa: E402
+from api_client import open_session, say  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DESTINO = REPO_ROOT / "docs" / "exemplos"
@@ -79,9 +79,9 @@ CONVERSAS = [
 
 
 def _rodar(base_url: str, conversa: dict[str, Any]) -> list[dict[str, Any]]:
-    token = abrir_sessao(base_url)
+    token = open_session(base_url)
     return [
-        {"pergunta": mensagem, **falar(base_url, token, mensagem)}
+        {"pergunta": mensagem, **say(base_url, token, mensagem)}
         for mensagem in conversa["turnos"]
     ]
 
