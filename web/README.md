@@ -16,11 +16,18 @@ docker compose up --build
 **Sem Docker** (desenvolvimento):
 
 ```bash
-python serve.py          # abre http://localhost:5173
+python serve.py                       # http://127.0.0.1:5173
+python serve.py --port 5173 --no-browser
 ```
 
-A API precisa estar em `http://localhost:8000`. A URL é editável na própria tela (painel **Sessão**)
-e fica salva em `localStorage`; o padrão é `http://localhost:8000`.
+O script checa os arquivos obrigatórios antes de subir. Se faltar algo (foi o caso do pacote
+original, que veio sem `vendor/`), ele para e diz exatamente o que falta — em vez de servir uma
+página em branco cujo erro no console parece falha de rede. Também recusa subir com a porta ocupada:
+no Windows dois servidores conseguem assumir a mesma porta em silêncio, e aí a requisição cai no
+processo errado.
+
+A URL da API precisa estar em `http://localhost:8000`. Ela é editável na própria tela (painel
+**Sessão**) e fica salva em `localStorage`; o padrão é `http://localhost:8000`.
 
 ## CORS
 
