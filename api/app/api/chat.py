@@ -17,6 +17,7 @@ from app.api.deps import get_runner, get_store, require_session
 from app.api.schemas import ChatRequest, ErrorResponse
 from app.audit.log import audit_event
 from app.core.config import Settings, get_settings
+from app.core.turn import TurnOutcome
 from app.db.connection import connect
 from app.guards.input import Verdict, screen
 from app.runtime.store import RuntimeStore, Session
@@ -135,9 +136,7 @@ async def chat(
         )
 
     if not veredito.allowed:
-        return _blocked_response(
-            store, session, payload.message, veredito, settings, request_id, headers
-        )
+        return _blocked_response(store, session, payload.message, veredito, settings)
 
     store.append_message(session.session_id, role="user", content=payload.message)
     historico = _history(store.messages(session.session_id)[:-1])
@@ -154,26 +153,18 @@ async def chat(
                 yield _sse(evento["event"], evento["data"])
 
             latencia = int((time.perf_counter() - inicio) * 1000)
-            store.bind_customer(
-                session.session_id, contexto.customer_id, contexto.customer_name
-            )
+            outcome = acumulado.to_outcome(latency_ms=latencia)
+
+            store.bind_customer(session.session_id, contexto.customer_id, contexto.customer_name)
             message_id = store.append_message(
                 session.session_id,
                 role="assistant",
-                content=acumulado.answer,
-                guard=acumulado.guard,
+                content=outcome.answer,
+                guard=outcome.guard,
                 latency_ms=latencia,
             )
-            store.add_usage(
-                session.session_id,
-                tokens_in=acumulado.tokens_in,
-                tokens_out=acumulado.tokens_out,
-                tools=acumulado.tools_used,
-                guard=acumulado.guard,
-                latency_ms=latencia,
-                prompt_version=acumulado.prompt_version,
-                model=settings.llm_model,
-            )
+            store.add_usage(session.session_id, outcome)
+
             if settings.audit_enabled:
                 audit_event(
                     logs_dir=settings.logs_dir,
@@ -181,21 +172,16 @@ async def chat(
                     session_id=session.session_id,
                     customer_id=contexto.customer_id,
                     message=payload.message,
-                    tools=acumulado.tools_used,
-                    guard=acumulado.guard,
-                    tokens_in=acumulado.tokens_in,
-                    tokens_out=acumulado.tokens_out,
-                    latency_ms=latencia,
-                    prompt_version=acumulado.prompt_version,
-                    model=settings.llm_model,
+                    outcome=outcome,
                 )
+
             yield _sse("usage", store.usage(session))
             yield _sse(
                 "done",
                 {
                     "message_id": message_id,
                     "latency_ms": latencia,
-                    "guard": acumulado.guard,
+                    "guard": outcome.guard,
                     "request_id": request_id,
                 },
             )
@@ -223,22 +209,31 @@ def _blocked_response(
     message: str,
     veredito: Verdict,
     settings: Settings,
-    request_id: str,
-    headers: dict[str, str],
 ) -> StreamingResponse:
     """Guard de entrada atuou: responde sem chamar o provedor e registra o motivo."""
+    request_id = uuid4().hex[:12]
+    limite = settings.max_messages_per_minute
+    janela = store.recent_turns(session.session_id, 60)
+    headers = _stream_headers(_rate_headers(limite, janela + 1))
 
     async def eventos() -> AsyncIterator[str]:
         store.append_message(session.session_id, role="user", content=message)
         yield _sse("guard", {"tipo": veredito.code, "acao": "responder_fixo"})
         yield _sse("token", {"delta": veredito.response or ""})
+
+        outcome = TurnOutcome(
+            answer=veredito.response or "",
+            guard=veredito.code,
+            prompt_version="guard",
+            model=settings.llm_model,
+        )
         message_id = store.append_message(
             session.session_id,
             role="assistant",
-            content=veredito.response or "",
-            guard=veredito.code,
-            latency_ms=0,
+            content=outcome.answer,
+            guard=outcome.guard,
         )
+
         if settings.audit_enabled:
             audit_event(
                 logs_dir=settings.logs_dir,
@@ -246,21 +241,16 @@ def _blocked_response(
                 session_id=session.session_id,
                 customer_id=session.customer_id,
                 message=message,
-                tools=[],
-                guard=veredito.code,
-                tokens_in=0,
-                tokens_out=0,
-                latency_ms=0,
-                prompt_version="guard",
-                model=settings.llm_model,
+                outcome=outcome,
             )
+
         yield _sse("usage", store.usage(session))
         yield _sse(
             "done",
             {
                 "message_id": message_id,
                 "latency_ms": 0,
-                "guard": veredito.code,
+                "guard": outcome.guard,
                 "request_id": request_id,
             },
         )

@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from app.core.turn import TurnOutcome
+
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 
@@ -119,18 +121,7 @@ class RuntimeStore:
 
     # --- consumo ---------------------------------------------------------
 
-    def add_usage(
-        self,
-        session_id: str,
-        *,
-        tokens_in: int,
-        tokens_out: int,
-        tools: list[str],
-        guard: str | None,
-        latency_ms: int,
-        prompt_version: str,
-        model: str,
-    ) -> None:
+    def add_usage(self, session_id: str, outcome: TurnOutcome) -> None:
         with closing(self._connect()) as conn:
             conn.execute(
                 "INSERT INTO usage_ledger (session_id, tokens_in, tokens_out, tools, guard,"
@@ -138,13 +129,13 @@ class RuntimeStore:
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     session_id,
-                    tokens_in,
-                    tokens_out,
-                    json.dumps(tools, ensure_ascii=False),
-                    guard,
-                    latency_ms,
-                    prompt_version,
-                    model,
+                    outcome.tokens_in,
+                    outcome.tokens_out,
+                    json.dumps(list(outcome.tools), ensure_ascii=False),
+                    outcome.guard,
+                    outcome.latency_ms,
+                    outcome.prompt_version,
+                    outcome.model,
                     _now().isoformat(),
                 ),
             )

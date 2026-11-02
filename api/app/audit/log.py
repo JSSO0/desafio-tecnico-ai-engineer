@@ -1,8 +1,8 @@
 """Trilha de auditoria: uma linha JSON por turno, com PII mascarada.
 
 O que fica registrado e o suficiente para reconstruir a decisao (quais ferramentas, que guard,
-quantos tokens, qual prompt) sem guardar dado pessoal em claro. A politica de privacidade da
-loja (secao 9) e a LGPD pedem minimizacao: telefone e e-mail nunca vao para o arquivo.
+quantos tokens, qual prompt) sem guardar dado pessoal em claro. A politica de privacidade da loja
+(secao 9) e a LGPD pedem minimizacao: telefone e e-mail nunca vao para o arquivo.
 """
 
 from __future__ import annotations
@@ -12,6 +12,8 @@ import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+
+from app.core.turn import TurnOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +34,7 @@ def audit_event(
     session_id: str,
     customer_id: int | None,
     message: str,
-    tools: list[str],
-    guard: str | None,
-    tokens_in: int,
-    tokens_out: int,
-    latency_ms: int,
-    prompt_version: str,
-    model: str,
+    outcome: TurnOutcome,
 ) -> None:
     registro = {
         "ts": datetime.now(UTC).isoformat(),
@@ -47,13 +43,13 @@ def audit_event(
         "customer_id": customer_id,
         "message_chars": len(message),
         "message": redact(message),
-        "tools": tools,
-        "guard": guard,
-        "tokens_in": tokens_in,
-        "tokens_out": tokens_out,
-        "latency_ms": latency_ms,
-        "prompt_version": prompt_version,
-        "model": model,
+        "tools": list(outcome.tools),
+        "guard": outcome.guard,
+        "tokens_in": outcome.tokens_in,
+        "tokens_out": outcome.tokens_out,
+        "latency_ms": outcome.latency_ms,
+        "prompt_version": outcome.prompt_version,
+        "model": outcome.model,
     }
 
     try:

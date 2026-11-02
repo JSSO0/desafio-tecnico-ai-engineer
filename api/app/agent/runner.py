@@ -11,6 +11,8 @@ from langchain.messages import AIMessageChunk, HumanMessage
 from app.agent.agent import build_agent, message_text
 from app.agent.prompts import active_prompt_version
 from app.agent.session import SessionContext
+from app.core.config import get_settings
+from app.core.turn import TurnOutcome
 from app.guards.grounding import enforce_price_grounding
 
 _CARD_TOOLS = {
@@ -34,10 +36,23 @@ class TurnAccumulator:
     tokens_out: int = 0
     guard: str | None = None
     prompt_version: str = field(default_factory=active_prompt_version)
+    model: str = ""
 
     @property
     def tools_used(self) -> list[str]:
         return [str(call.get("name")) for call in self.tool_calls]
+
+    def to_outcome(self, latency_ms: int = 0) -> TurnOutcome:
+        return TurnOutcome(
+            answer=self.answer,
+            tools=tuple(self.tools_used),
+            tokens_in=self.tokens_in,
+            tokens_out=self.tokens_out,
+            latency_ms=latency_ms,
+            guard=self.guard,
+            prompt_version=self.prompt_version,
+            model=self.model,
+        )
 
 
 def _card(tool_name: str, content: str) -> dict[str, Any] | None:
@@ -69,6 +84,7 @@ class AgentRunner:
         acc: TurnAccumulator,
         conn: sqlite3.Connection,
     ) -> AsyncIterator[dict[str, Any]]:
+        acc.model = get_settings().llm_model
         agent = build_agent(session_ctx, conn)
         partes: list[str] = []
         nomes_por_id: dict[str, str] = {}

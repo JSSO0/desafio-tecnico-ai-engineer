@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_runner
+from app.core.turn import TurnOutcome
 from app.main import app
 from app.runtime.store import RuntimeStore
 
@@ -168,16 +169,7 @@ def test_orcamento_esgotado_devolve_429(
     client: TestClient, runner, store: RuntimeStore
 ) -> None:
     token, session_id = _sessao(client)
-    store.add_usage(
-        session_id,
-        tokens_in=10_000_000,
-        tokens_out=0,
-        tools=[],
-        guard=None,
-        latency_ms=1,
-        prompt_version="teste",
-        model="teste",
-    )
+    store.add_usage(session_id, TurnOutcome(answer="", tokens_in=10_000_000))
 
     resposta = client.post(
         "/v1/chat", json={"message": "oi"}, headers={"Authorization": f"Bearer {token}"}

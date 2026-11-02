@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from app.audit.log import audit_event, redact
+from app.core.turn import TurnOutcome
 
 
 def test_redige_telefone_formatado() -> None:
@@ -23,13 +24,15 @@ def test_auditoria_grava_jsonl_com_campos_obrigatorios(tmp_path: Path) -> None:
         session_id="sessao1",
         customer_id=3,
         message="meu telefone é (67) 98432-1098",
-        tools=["consultar_pedido"],
-        guard=None,
-        tokens_in=100,
-        tokens_out=20,
-        latency_ms=900,
-        prompt_version="v1abc",
-        model="deepseek-chat",
+        outcome=TurnOutcome(
+            answer="Vou verificar.",
+            tools=("consultar_pedido",),
+            tokens_in=100,
+            tokens_out=20,
+            latency_ms=900,
+            prompt_version="v1abc",
+            model="deepseek-chat",
+        ),
     )
 
     arquivos = list(tmp_path.glob("audit-*.jsonl"))
@@ -53,13 +56,14 @@ def test_auditoria_acumula_uma_linha_por_turno(tmp_path: Path) -> None:
             session_id="sessao1",
             customer_id=None,
             message="oi",
-            tools=[],
-            guard=None,
-            tokens_in=1,
-            tokens_out=1,
-            latency_ms=1,
-            prompt_version="v1",
-            model="m",
+            outcome=TurnOutcome(
+                answer="oi",
+                tokens_in=1,
+                tokens_out=1,
+                latency_ms=1,
+                prompt_version="v1",
+                model="m",
+            ),
         )
 
     arquivo = next(tmp_path.glob("audit-*.jsonl"))
