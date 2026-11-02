@@ -50,6 +50,10 @@ LLM_MODEL=gpt-4.1-mini
 
 *(preenchido ao longo das fases — ver `docs/adr/` e `memory-bank/01-arquitetura-e-decisoes.md`)*
 
+- [ADR 0001 — Estratégia de testes](docs/adr/0001-estrategia-de-testes.md): testamos as nossas
+  fronteiras (dados, tools, gate, contrato HTTP), não o loop do LangChain. O motivo e o que
+  cada camada protege estão no ADR.
+
 ## Premissas e qualidade dos dados
 
 Os arquivos de origem **não foram editados**. Divergências são reportadas pelo build
@@ -62,7 +66,7 @@ Os arquivos de origem **não foram editados**. Divergências são reportadas pel
 | Categorias 6 (Sopro/Madeiras), 7 (Metais) e 8 (Cordas Orquestrais) não têm produtos | Pergunta sobre saxofone/violino recebe resposta honesta, sem invenção |
 | Produtos 96 e 113 com estoque 0 (113 descontinuado) | "Violões até R$1.000" retorna 12 disponíveis, não 14 |
 | Promoção de 12% no Takamine GD20 (id 95) está **inativa** | Preço correto é R$2.199, sem desconto |
-| Só 8 dos 50 clientes têm pedido; cliente 3 tem pedidos 1 e 19 | Identificação por telefone, não por nome |
+| 18 dos 50 clientes têm pedido; ids 3 e 7 têm 2 pedidos cada (um deles cancelado) | Identificação por telefone, não por nome |
 
 Detalhamento completo em [`memory-bank/02-dados-e-premissas.md`](memory-bank/02-dados-e-premissas.md).
 

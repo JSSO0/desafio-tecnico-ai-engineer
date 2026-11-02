@@ -38,7 +38,7 @@ pedidos têm itens.
 5. **Promoção inativa em produto famoso.** Takamine GD20 (id 95) = **R$2.199**, com promoção de 12%
    **inativa** em `promotions`. Teste ideal de "promoção expirada" (§7.3).
    Ativas: 127 (−10%), 121 (−20%), 90 (−18%), 94 (−8%).
-6. **Poucos clientes com pedido.** Só 8 dos 50. Ids 3 e 7 têm 2 pedidos cada (um deles cancelado).
+6. **Poucos clientes com pedido.** 18 dos 50 (20 pedidos). Ids 3 e 7 têm 2 pedidos cada (um deles cancelado).
    Cliente 3 = `(67) 98432-1098` → pedidos 1 (`delivered`, `BRAB1234567BR`) e 19 (`cancelled`).
 7. **`specs` é JSON serializado dentro do CSV.** Parse obrigatório; JSON inválido derruba o build
    (falha alta, não silenciosa).
