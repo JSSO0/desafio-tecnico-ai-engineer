@@ -1,4 +1,4 @@
-﻿"""Avaliacao do agente pelo mesmo caminho da producao: HTTP + SSE.
+"""Avaliacao do agente pelo mesmo caminho da producao: HTTP + SSE.
 
 Diferente do pytest, aqui entram o modelo real, a latencia e o tom. Os casos declaram o que
 precisa aparecer, o que nao pode aparecer e quais ferramentas precisam ser usadas.
@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
             falhas = avaliar(caso, acumulado)
         except urllib.error.HTTPError as exc:
             falhas = [f"HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:120]}"]
-        except Exception as exc:  # noqa: BLE001 â€” avaliacao precisa reportar, nao quebrar
+        except Exception as exc:  # noqa: BLE001 — avaliacao precisa reportar, nao quebrar
             falhas = [f"erro: {exc}"]
 
         resultados.append(
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for item in resultados:
             marca = "PASS" if item["passou"] else "FAIL"
-            detalhe = "" if item["passou"] else " Â· " + "; ".join(item["falhas"])
+            detalhe = "" if item["passou"] else " · " + "; ".join(item["falhas"])
             print(f"[{marca}] {item['id']:<24} tools={','.join(item['tools']) or '-':<40}{detalhe}")
         print(f"\n{aprovados}/{len(resultados)} aprovados")
 

@@ -1,4 +1,4 @@
-﻿"""Ambiente dos testes: roda fora do container, sem rede, sem chave e sem tocar os dados de origem.
+"""Ambiente dos testes: roda fora do container, sem rede, sem chave e sem tocar os dados de origem.
 
 As variaveis precisam ser definidas antes de qualquer import de `app` porque `Settings` e
 `app.main` leem o ambiente no import. Por isso o bloco abaixo nao depende de fixture.
