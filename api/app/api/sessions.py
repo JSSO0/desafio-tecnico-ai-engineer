@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.deps import assert_own_session, get_store, require_session
 from app.api.schemas import MessageOut, MessagesResponse, SessionCreated, UsageResponse
@@ -19,13 +19,33 @@ router = APIRouter(prefix="/v1/sessions", tags=["sessoes"])
     summary="Abre uma sessao de atendimento",
     description=(
         "Cria uma sessao anonima e devolve o `access_token` (opaco, 256 bits, 30 min deslizantes). "
-        "Nenhuma credencial de provedor de LLM e exposta ao cliente: a chave fica no servidor."
+        "Nenhuma credencial de provedor de LLM e exposta ao cliente: a chave fica no servidor. "
+        "A criacao e limitada por origem, porque cada sessao carrega um orcamento de tokens."
     ),
+    responses={
+        429: {
+            "description": "Muitas sessoes abertas pela mesma origem na ultima hora",
+        }
+    },
 )
 def create_session(
+    request: Request,
     store: Annotated[RuntimeStore, Depends(get_store)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SessionCreated:
+    origem = request.client.host if request.client else "desconhecida"
+
+    if store.creations_by_ip(origem) >= settings.max_sessions_per_hour:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "too_many_sessions",
+                "message": "Muitas sessoes abertas em pouco tempo. Tente de novo mais tarde.",
+            },
+            headers={"Retry-After": "3600"},
+        )
+
+    store.register_creation(origem)
     token, session = store.create(settings.session_ttl_minutes, settings.budget_tokens)
     return SessionCreated(
         access_token=token,
