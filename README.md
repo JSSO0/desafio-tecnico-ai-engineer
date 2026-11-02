@@ -69,6 +69,7 @@ escolhido por configuração.
   280 tokens de política por turno contra 2.930 do manual inteiro.
 - **Token opaco de sessão** em vez de JWT (revogação e orçamento por sessão) — ADR 0002.
 - **Guardrail no código, não no prompt** — o gate de preço roda sobre a saída.
+- **Nomenclatura:** identificador em inglês, fronteira em português (ADR 0005).
 
 ## Guardrails, limites e custo
 

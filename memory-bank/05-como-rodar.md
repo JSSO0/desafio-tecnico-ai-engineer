@@ -13,7 +13,7 @@ cp .env.example .env      # preencha a chave do provedor escolhido
 docker compose up --build
 ```
 
-- API e Swagger: <http://localhost:8000/docs>
+- API e Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Saúde: `/healthz` (vivo) e `/readyz` (base carregada + chave presente)
 - Configuração ativa: `/v1/meta` (provedor, modelo, `prompt_version`)
 
@@ -46,9 +46,9 @@ docker compose exec api -T python -m app.cli --once "Quanto custa o Takamine GD2
 
 ## Onde olhar quando algo falha
 
-| Sintoma | Onde |
-|---|---|
-| Resposta sem preço / "vou confirmar" | `logs/audit-AAAA-MM-DD.jsonl`, campo `guard` |
-| `429` | `X-RateLimit-*`, `Retry-After`, `GET /v1/sessions/{id}/usage` |
-| Base desatualizada | `docker compose down -v` e subir de novo (reconstroi do CSV) |
-| Resposta estranha do modelo | `prompt_version` no `/v1/meta` e em cada linha de auditoria |
+| Sintoma                              | Onde                                                          |
+| ------------------------------------ | ------------------------------------------------------------- |
+| Resposta sem preço / "vou confirmar" | `logs/audit-AAAA-MM-DD.jsonl`, campo `guard`                  |
+| `429`                                | `X-RateLimit-*`, `Retry-After`, `GET /v1/sessions/{id}/usage` |
+| Base desatualizada                   | `docker compose down -v` e subir de novo (reconstroi do CSV)  |
+| Resposta estranha do modelo          | `prompt_version` no `/v1/meta` e em cada linha de auditoria   |

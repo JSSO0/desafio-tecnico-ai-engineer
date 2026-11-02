@@ -21,6 +21,7 @@ tags: [projeto, emporio-da-musica, desafio-artefact, moc]
 - [[03-fases-e-gates]] — o que foi aprovado em cada gate.
 - [[04-tasks-abertas]] — pendências.
 - [[05-como-rodar]] — comandos e verificação.
+- [[06-revisao-de-codigo]] — os 10 apontamentos da revisão e o veredito de cada um.
 
 ## Fatos que não podem ser esquecidos
 
