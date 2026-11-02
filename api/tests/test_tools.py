@@ -4,6 +4,7 @@ import pytest
 
 from app.agent.session import SessionContext
 from app.tools import build_tools
+from app.tools.catalog import _where
 
 PII_KEYS = {"email", "phone", "cpf", "endereco", "city", "customer_id"}
 
@@ -317,3 +318,30 @@ def test_debito_nao_parcela(ferramentas) -> None:
     out = tools["simular_pagamento"].invoke({"valor": 500, "forma": "debito", "parcelas": 3})
 
     assert out["permitido"] is False
+
+
+# --- montagem da clausula (sem banco) ---------------------------------------
+
+
+def test_where_vazio_quando_nao_ha_filtro() -> None:
+    assert _where(None, None, None, None, False) == ("", [])
+
+
+def test_where_compoe_clausulas_e_parametros_na_ordem() -> None:
+    where, params = _where("violao", "5", 100.0, 1000.0, True)
+
+    assert where.startswith(" WHERE ")
+    assert "stock_quantity > 0" in where
+    assert params == ["violao", "violao", "5", "5", 100.0, 1000.0]
+
+
+def test_where_tem_um_parametro_para_cada_marcador() -> None:
+    """Regressao: marcador sem parametro (ou o contrario) quebra a consulta em runtime."""
+    for filtros in (
+        ("violao", None, None, None, True),
+        (None, "violoes", None, None, False),
+        (None, None, 500.0, 1000.0, True),
+        ("aço", "5", 100.0, 2000.0, False),
+    ):
+        where, params = _where(*filtros)
+        assert where.count("?") == len(params)

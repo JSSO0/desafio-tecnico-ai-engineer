@@ -31,6 +31,35 @@ def _product_card(row: sqlite3.Row) -> dict[str, object]:
     return card
 
 
+def _where(
+    termo: str | None,
+    categoria: str | None,
+    preco_min: float | None,
+    preco_max: float | None,
+    somente_disponiveis: bool,
+) -> tuple[str, list[object]]:
+    """Clausula e parametros na ordem certa. Pura, testavel sem banco."""
+    clauses: list[str] = []
+    params: list[object] = []
+
+    if termo:
+        clauses.append("(instr(unaccent(name), ?) > 0 OR instr(unaccent(description), ?) > 0)")
+        params.extend([normalize(termo), normalize(termo)])
+    if categoria:
+        clauses.append("(instr(unaccent(category_name), ?) > 0 OR CAST(category_id AS TEXT) = ?)")
+        params.extend([normalize(categoria), categoria.strip()])
+    if preco_min is not None:
+        clauses.append("price_final >= ?")
+        params.append(float(preco_min))
+    if preco_max is not None:
+        clauses.append("price_final <= ?")
+        params.append(float(preco_max))
+    if somente_disponiveis:
+        clauses.append("stock_quantity > 0 AND status = 'active'")
+
+    return (f" WHERE {' AND '.join(clauses)}" if clauses else ""), params
+
+
 def make_catalog_tools(conn: sqlite3.Connection):
     @tool
     def buscar_produtos(
@@ -57,29 +86,7 @@ def make_catalog_tools(conn: sqlite3.Connection):
         Returns:
             total_encontrado, itens e uma observacao quando nada casa com o filtro.
         """
-        clauses: list[str] = []
-        params: list[object] = []
-
-        if termo:
-            clauses.append(
-                "(instr(unaccent(name), ?) > 0 OR instr(unaccent(description), ?) > 0)"
-            )
-            params.extend([normalize(termo), normalize(termo)])
-        if categoria:
-            clauses.append(
-                "(instr(unaccent(category_name), ?) > 0 OR CAST(category_id AS TEXT) = ?)"
-            )
-            params.extend([normalize(categoria), categoria.strip()])
-        if preco_min is not None:
-            clauses.append("price_final >= ?")
-            params.append(float(preco_min))
-        if preco_max is not None:
-            clauses.append("price_final <= ?")
-            params.append(float(preco_max))
-        if somente_disponiveis:
-            clauses.append("stock_quantity > 0 AND status = 'active'")
-
-        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        where, params = _where(termo, categoria, preco_min, preco_max, somente_disponiveis)
         limite = max(1, min(int(limite), 20))
 
         total = conn.execute(f"SELECT COUNT(*) FROM v_products{where}", params).fetchone()[0]
