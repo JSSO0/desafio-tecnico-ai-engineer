@@ -32,4 +32,5 @@ known-first-party = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["api/tests"]
+pythonpath = ["api"]
 addopts = "-q"
