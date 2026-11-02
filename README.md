@@ -48,11 +48,43 @@ LLM_MODEL=gpt-4.1-mini
 
 ## Decisões técnicas
 
-*(preenchido ao longo das fases — ver `docs/adr/` e `memory-bank/01-arquitetura-e-decisoes.md`)*
+*(justificativa completa no fechamento — ver `docs/adr/` e `memory-bank/01-arquitetura-e-decisoes.md`)*
 
-- [ADR 0001 — Estratégia de testes](docs/adr/0001-estrategia-de-testes.md): testamos as nossas
-  fronteiras (dados, tools, gate, contrato HTTP), não o loop do LangChain. O motivo e o que
-  cada camada protege estão no ADR.
+- **Híbrido ferramenta + seção:** dados operacionais por 6 ferramentas tipadas sobre SQLite;
+  políticas por recuperação em 25 blocos do manual, com citação. Nada de RAG sobre CSV.
+- **Retrieval lexical (FTS5/BM25)** com prefixo de 5 caracteres e re-rank por cobertura com IDF:
+  280 tokens de política por turno contra 2.930 do manual inteiro.
+- **Token opaco de sessão** em vez de JWT (revogação e orçamento por sessão) — ADR 0002.
+- **Guardrail no código, não no prompt** — o gate de preço roda sobre a saída.
+
+## Guardrails, limites e custo
+
+| Camada | O que faz |
+|---|---|
+| Entrada (código) | recusa mensagem acima de 800 caracteres (`400`) e tentativa explícita de desvio (`guard: injection_attempt`, sem chamar o provedor) |
+| Modelo | persona e tom do manual; proibição de afirmar preço, estoque ou prazo sem ferramenta |
+| Saída (código) | gate de preço: todo `R$` precisa existir em resultado de ferramenta do mesmo turno |
+| Autorização | token opaco; `consultar_pedido` usa o cliente da sessão, nunca um id vindo do modelo |
+| Custo | orçamento de 60 mil tokens por sessão, 10 mensagens/minuto por sessão, 20 sessões/hora por origem |
+| Auditoria | uma linha JSONL por turno em `logs/`, com telefone e e-mail mascarados |
+
+Escopo e acessório **não** são bloqueados por palavra-chave: "vocês vendem cordas?" é pergunta
+legítima e a resposta certa é redirecionar com educação, não negar atendimento.
+
+## Avaliação
+
+Casos declarativos em [`evals/casos.jsonl`](evals/casos.jsonl), executados **contra a API real**
+(mesmo caminho da produção, com modelo e latência reais):
+
+```bash
+docker compose exec api python scripts/eval.py            # tabela
+docker compose exec api python scripts/eval.py --json     # saída para máquina
+docker compose exec api python scripts/eval.py --ids pix,devolucao
+```
+
+Cobrem os 4 cenários do enunciado, as 6 armadilhas dos dados, tentativa de injeção, pergunta fora
+de escopo e consulta de pedido de outro cliente. Resultado atual: **14/14**.
+
 
 ## Premissas e qualidade dos dados
 

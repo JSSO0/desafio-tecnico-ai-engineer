@@ -118,6 +118,24 @@ Regra: **nenhuma fase avança sem aprovação explícita do dono do projeto.** G
 ### GATE 3 — RAG por seção com citação
 - **Status:** pendente
 
+### B5 — Guardrails, limites e auditoria
+- **Entregue:** guard de entrada (tamanho + desvio), rate limit por sessão e por origem,
+  orçamento imposto no servidor, trilha JSONL com PII mascarada, evals contra a API real.
+- **Verificação executada:**
+  - `pytest` → 146 passed · `ruff` limpo
+  - `scripts/eval.py` contra a API com **14/14 aprovados** (2 turnos em 3 casos)
+  - auditoria: 1 linha por turno, `message: "[telefone]"`, sem telefone/e-mail em claro no arquivo
+  - rate limit: 11ª mensagem no minuto → 429 com `Retry-After: 60` e `X-RateLimit-Limit: 10`
+  - injection: responde sem chamar o provedor (`runner.chamadas == 0` no teste)
+- **Decisão:** escopo e acessório ficam com o modelo, não com regex. "Vocês vendem cordas?" é
+  pergunta legítima; bloquear por palavra-chave erraria o tom e negaria atendimento.
+- **Limitação conhecida:** o rate limit por origem usa `request.client.host`, que atrás de proxy
+  vira o IP do proxy. Em produção exigiria `X-Forwarded-For` confiável.
+- **Observação dos evals:** em dois casos o modelo chamou `identificar_cliente` de novo no turno
+  seguinte, porque o histórico guarda a conversa e não o resultado da ferramenta. Custa ~1 tool
+  barata e mantém o contexto pequeno — trade-off aceito e registrado.
+
+
 ### GATE 4 — Diagramas C4
 - **Status:** pendente
 
