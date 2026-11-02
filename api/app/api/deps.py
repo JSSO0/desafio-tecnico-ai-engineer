@@ -7,7 +7,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.agent.runner import AgentRunner
 from app.core.config import Settings, get_settings
-from app.runtime.store import RuntimeStore, Session, SessionError
+from app.core.errors import SessionError
+from app.runtime.store import RuntimeStore, Session
 
 _STORE: dict[str, RuntimeStore] = {}
 

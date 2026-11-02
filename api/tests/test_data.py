@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from app.core.errors import DataSourceError
 from app.db.build import build_database, data_quality_report, load_policies
 
 
@@ -63,7 +64,7 @@ def test_build_fails_loudly_on_invalid_specs_json(
         escritor.writeheader()
         escritor.writerows(linhas)
 
-    with pytest.raises(ValueError, match="specs invalido no produto"):
+    with pytest.raises(DataSourceError, match="specs invalido no produto"):
         build_database(tmp_path / "loja.db", copia, copia / "policies")
 
 
@@ -73,7 +74,7 @@ def test_build_fails_loudly_when_source_csv_is_missing(
     copia = _copy_data(data_dir, tmp_path)
     next(copia.glob("* - categories.csv")).unlink()
 
-    with pytest.raises(FileNotFoundError, match="categories"):
+    with pytest.raises(DataSourceError, match="categories"):
         build_database(tmp_path / "loja.db", copia, copia / "policies")
 
 
@@ -99,7 +100,7 @@ def test_policy_chunks_carry_complete_provenance(conn: sqlite3.Connection) -> No
 
 
 def test_policy_loader_fails_when_directory_is_empty(tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError, match="nenhuma politica"):
+    with pytest.raises(DataSourceError, match="nenhuma politica"):
         load_policies(tmp_path)
 
 

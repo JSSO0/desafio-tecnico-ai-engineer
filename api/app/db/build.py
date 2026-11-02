@@ -7,6 +7,8 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.core.errors import DataSourceError
+
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 _FRONT_MATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
@@ -29,7 +31,9 @@ class PolicyChunk:
 def _csv_path(data_dir: Path, table: str) -> Path:
     matches = sorted(data_dir.glob(f"* - {table}.csv"))
     if len(matches) != 1:
-        raise FileNotFoundError(f"esperava 1 CSV de '{table}' em {data_dir}, achei {len(matches)}")
+        raise DataSourceError(
+            f"esperava 1 CSV de '{table}' em {data_dir}, achei {len(matches)}"
+        )
     return matches[0]
 
 
@@ -104,7 +108,7 @@ def parse_policy_file(path: Path) -> list[PolicyChunk]:
 def load_policies(policies_dir: Path) -> list[PolicyChunk]:
     files = sorted(policies_dir.glob("*.md"))
     if not files:
-        raise FileNotFoundError(f"nenhuma politica encontrada em {policies_dir}")
+        raise DataSourceError(f"nenhuma politica encontrada em {policies_dir}")
     chunks: list[PolicyChunk] = []
     for path in files:
         chunks.extend(parse_policy_file(path))
@@ -127,7 +131,9 @@ def _insert_products(conn: sqlite3.Connection, data_dir: Path) -> int:
         try:
             specs = json.loads(row["specs"])
         except json.JSONDecodeError as exc:  # dado sujo deve falhar alto, nao passar silencioso
-            raise ValueError(f"specs invalido no produto {row['product_id']}: {exc}") from exc
+            raise DataSourceError(
+                f"specs invalido no produto {row['product_id']}: {exc}"
+            ) from exc
         payload.append(
             (
                 int(row["product_id"]),

@@ -9,18 +9,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from app.core.errors import SessionError
 from app.core.turn import TurnOutcome
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
-
-
-class SessionError(Exception):
-    """Falha de sessao com o codigo que a API deve devolver."""
-
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-        self.message = message
 
 
 @dataclass(frozen=True)

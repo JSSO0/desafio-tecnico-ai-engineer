@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.prompts import active_prompt_version
 from app.api.chat import router as chat_router
+from app.api.errors import register_exception_handlers
 from app.api.health import router as health_router
 from app.api.schemas import MetaResponse
 from app.api.sessions import router as sessions_router
@@ -45,6 +46,8 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+register_exception_handlers(app)
+
 app.include_router(health_router)
 app.include_router(sessions_router)
 app.include_router(chat_router)
