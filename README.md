@@ -46,6 +46,15 @@ LLM_MODEL=gpt-4.1-mini
 
 ---
 
+## Arquitetura
+
+Diagramas C4 (contexto, contêineres, componentes, implantação e dinâmico) em Mermaid, com a chave de
+notação e a justificativa de escopo: [`docs/architecture/c4.md`](docs/architecture/c4.md).
+
+Em uma frase: cliente → API FastAPI (sessão, guardrails, agente ReAct, RAG, limites, auditoria) →
+SQLite operacional somente leitura + SQLite de execução + trilha JSONL, com provedor de LLM externo
+escolhido por configuração.
+
 ## Decisões técnicas
 
 *(justificativa completa no fechamento — ver `docs/adr/` e `memory-bank/01-arquitetura-e-decisoes.md`)*
