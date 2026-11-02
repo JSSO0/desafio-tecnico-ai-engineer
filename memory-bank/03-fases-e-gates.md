@@ -89,7 +89,31 @@ Regra: **nenhuma fase avança sem aprovação explícita do dono do projeto.** G
      Corrigido e travado por teste de regressão.
 
 ### GATE 2 — Contrato de API congelado
-- **Status:** pendente
+- **Status:** entregue, aguardando validação
+
+### B4 — API de sessão, streaming e contrato
+- **Entregue:** `POST /v1/sessions`, `POST /v1/chat` (SSE), `GET /usage`, `GET /messages`,
+  `DELETE /sessions/{id}`, `/v1/meta` com `prompt_version`. Runtime separado (`runtime.db`).
+- **Verificação executada (HTTP real + DeepSeek):**
+
+| Verificação | Resultado |
+|---|---|
+| `POST /v1/sessions` | 201, token opaco de 43 chars, budget 60.000 |
+| `POST /v1/chat` (Takamine) | `tool_call` start/end com nome certo, `card` com o produto, 62 eventos `token`, `usage`, `done` |
+| `content-type` | `text/event-stream; charset=utf-8` |
+| Multi-turno (pedido → telefone → "e o pedido 19?") | identidade persistiu entre requisições; turno 3 sem tool |
+| Consumo | 3 turnos = 13.474 tokens; `/usage` e `X-Budget-Remaining` coerentes |
+| Testes | 123 passed · ruff limpo |
+
+- **Bugs encontrados e corrigidos:**
+  1. `tool_call` fantasma com `name: ""`: chunk parcial de tool call era emitido como evento.
+     Agora fragmentos sem nome são descartados e o `id` evita repetição.
+  2. `tool_call end` sem nome: o `ToolMessage` não traz o nome. Corrigido com mapa `tool_call_id → nome`.
+- **Decisão de contrato:** o gate de preço roda **depois** dos tokens saírem. Quando atua, emite
+  `guard` com `acao=substituir_resposta` e o texto seguro; o cliente deve trocar o que renderizou.
+  Alternativa (bufferizar tudo e só então emitir) anularia o streaming. Registrado no ADR 0002 e na
+  descrição do endpoint.
+
 
 ### GATE 3 — RAG por seção com citação
 - **Status:** pendente
