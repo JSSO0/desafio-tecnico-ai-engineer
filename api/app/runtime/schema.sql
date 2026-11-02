@@ -40,3 +40,12 @@ CREATE TABLE IF NOT EXISTS usage_ledger (
 );
 
 CREATE INDEX IF NOT EXISTS idx_usage_session ON usage_ledger(session_id);
+
+-- Criacao de sessoes por origem: freio de denial-of-wallet (cada sessao tem orcamento).
+CREATE TABLE IF NOT EXISTS session_creations (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_ip  TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_creations_ip ON session_creations(client_ip, created_at);

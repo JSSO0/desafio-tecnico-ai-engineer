@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     session_ttl_minutes: int = 30
     budget_tokens: int = 60_000
     max_messages_per_minute: int = 10
+    max_sessions_per_hour: int = 20
+    audit_enabled: bool = True
 
     @property
     def policies_dir(self) -> Path:

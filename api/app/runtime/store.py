@@ -196,3 +196,34 @@ class RuntimeStore:
                 (session_id,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    # --- limites ---------------------------------------------------------
+
+    def recent_turns(self, session_id: str, window_seconds: int = 60) -> int:
+        """Mensagens do usuario na janela: base do rate limit por sessao."""
+        limite = (_now() - timedelta(seconds=window_seconds)).isoformat()
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM messages"
+                " WHERE session_id = ? AND role = 'user' AND created_at > ?",
+                (session_id, limite),
+            ).fetchone()
+        return int(row[0])
+
+    def register_creation(self, client_ip: str) -> None:
+        with closing(self._connect()) as conn:
+            conn.execute(
+                "INSERT INTO session_creations (client_ip, created_at) VALUES (?, ?)",
+                (client_ip, _now().isoformat()),
+            )
+            conn.commit()
+
+    def creations_by_ip(self, client_ip: str, window_minutes: int = 60) -> int:
+        limite = (_now() - timedelta(minutes=window_minutes)).isoformat()
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM session_creations"
+                " WHERE client_ip = ? AND created_at > ?",
+                (client_ip, limite),
+            ).fetchone()
+        return int(row[0])
