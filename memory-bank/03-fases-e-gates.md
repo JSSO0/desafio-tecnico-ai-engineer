@@ -116,7 +116,7 @@ Regra: **nenhuma fase avança sem aprovação explícita do dono do projeto.** G
 
 
 ### GATE 3 — RAG por seção com citação
-- **Status:** pendente
+- **Status:** entregue (validado nos evals e nas conversas de exemplo)
 
 ### B5 — Guardrails, limites e auditoria
 - **Entregue:** guard de entrada (tamanho + desvio), rate limit por sessão e por origem,
@@ -137,7 +137,37 @@ Regra: **nenhuma fase avança sem aprovação explícita do dono do projeto.** G
 
 
 ### GATE 4 — Diagramas C4
-- **Status:** pendente
+- **Status:** entregue
+
+### B6 — Arquitetura e decisões
+- **Entregue:** `docs/architecture/c4.md` (contexto, contêineres, componentes, implantação e dinâmico),
+  ADRs 0003 e 0004, `memory-bank/01`.
+- **Nível 4 fora de escopo**, com o motivo registrado no documento.
+- **Verificação:** os 5 diagramas foram renderizados no navegador antes do commit. Duas correções
+  vieram daí: o tipo `C4Context` do Mermaid cruzava rótulos sobre as caixas (trocado por `flowchart`
+  com chave explícita) e o sanitizador removia `<small>`/`<br/>` (a quebra de linha correta é `\n`
+  dentro de aspas).
+- **Incidente:** um comando de shell no Windows corrompeu o encoding de 3 arquivos (`Get-Content
+  -Raw` lê UTF-8 como ANSI). Detectado por varredura de bytes, revertido, BOMs removidos.
+
+### B7 — Interface integrada
+- **Entregue:** `web/` (React 18 + htm sem build step), container nginx em `:8080` com proxy para a
+  API, CORS liberando `:8080`, guia de integração no README.
+- **Diagnóstico do "erro de CORS" reportado:** não era CORS. O pacote veio **sem a pasta `vendor/`**,
+  então React, ReactDOM e htm davam 404, o `app.js` morria em `React is not defined` e nada chegava a
+  chamar a API. Sintoma parecido, causa diferente.
+- **Correção:** bibliotecas vendorizadas localmente (React 18.3.1, ReactDOM 18.3.1, htm 3.1.1).
+- **CORS reforçado de verdade:** `:8080` nas origens e proxy de `/v1`, `/healthz`, `/readyz` e
+  `/docs` no nginx, permitindo uso na mesma origem. `proxy_buffering off` é obrigatório — sem ele o
+  nginx acumula o corpo e o SSE deixa de ser streaming.
+- **Verificação executada (navegador real, não teste unitário):**
+  - `:5173` (`serve.py`): card de produto com specs e chip `detalhe_produto`
+  - `:8080` (nginx): dois pedidos com rastreio e status, chips `identificar_cliente` e
+    `consultar_pedido`, latência 4,2 s
+  - SSE atravessando o proxy: 60 eventos `token`, `usage` e `done`
+  - `fetch` cross-origin de `:8080` para `:8000`: 200 com `access-control-allow-origin`
+- **Limpeza:** zip removido e cópias soltas na raiz eliminadas (idênticas às de `web/`).
+- **Testes:** 151 verdes (4 novos de CORS).
 
 ## Cortes acordados (se atrasar)
 
