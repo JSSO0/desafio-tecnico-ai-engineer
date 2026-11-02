@@ -111,13 +111,84 @@ Os arquivos de origem **não foram editados**. Divergências são reportadas pel
 
 Detalhamento completo em [`memory-bank/02-dados-e-premissas.md`](memory-bank/02-dados-e-premissas.md).
 
+## Exemplos de interação
+
+Cinco conversas em [`docs/exemplos/`](docs/exemplos/), **geradas por script** contra a API real
+(`scripts/conversas.py`), não escritas à mão:
+
+| Arquivo | Cenário |
+|---|---|
+| [01-catalogo-e-preco](docs/exemplos/01-catalogo-e-preco.md) | filtro por faixa de preço e preço de um modelo |
+| [02-status-de-pedido](docs/exemplos/02-status-de-pedido.md) | identificação por telefone e status de pedido (multi-turno) |
+| [03-politica-de-devolucao](docs/exemplos/03-politica-de-devolucao.md) | arrependimento e defeito, com citação de §4.1, §4.2 e §8.1 |
+| [04-fora-de-escopo-e-acessorio](docs/exemplos/04-fora-de-escopo-e-acessorio.md) | assunto fora da loja e acessório não vendido |
+| [05-tentativa-de-desvio](docs/exemplos/05-tentativa-de-desvio.md) | pedido para ignorar instruções, recusado pelo guard |
+
+Cada transcrição registra **em qual turno** cada ferramenta foi consultada — é o que demonstra o
+"quando consultar" que o enunciado pede.
+
 ## Limitações conhecidas e o que faria com mais tempo
 
-*(preenchido no fechamento)*
+**Limitações**
+
+1. **A interface não está neste repositório.** Entrega-se a API com contrato em `/docs`; a UI é
+   integrada por outro time. O chat é consumido por HTTP/SSE.
+2. **SQLite sem réplica horizontal.** Atende o volume; escalar exigiria banco compartilhado.
+3. **Rate limit por origem usa o IP da conexão.** Atrás de proxy, todos compartilham o IP do proxy.
+4. **Auditoria em arquivo**, sem rotação automática nem retenção programada.
+5. **Retrieval lexical não cobre sinonímia.** "Algo para tocar bossa nova" não acha nada por BM25 —
+   o agente precisa reformular com o cliente em vez de inventar.
+6. **Sem busca semântica de produto** (decisão do ADR 0003).
+7. **Sem autenticação de pessoa**: sessão anônima. Adequado ao escopo, insuficiente para área logada.
+8. **Custo em reais/dólares não é calculado** — só tokens. O preço por modelo varia e envelhece.
+9. **Evals rodam sob demanda**, não no CI com baseline.
+10. **C4 nível 4 fora de escopo**, por decisão registrada em `docs/architecture/c4.md`.
+
+**Com mais tempo, nesta ordem de valor**
+
+1. Retrieval híbrido: BM25 para recall + embeddings só no rerank dos 10 candidatos.
+2. Evals no CI, com baseline versionado e bloqueio de regressão.
+3. Postgres (dados e sessões) + pgvector, com migração do repositório de dados.
+4. Interface React consumindo o contrato já congelado.
+5. Rotação de auditoria, retenção definida e envio para armazenamento.
+6. Rate limit e orçamento distribuídos (Redis) para múltiplas réplicas.
+7. Human-in-the-loop para reclamação e devolução de alto valor.
+8. Observabilidade com OpenTelemetry e SLO de latência.
 
 ## Uso de assistentes de código
 
-*(preenchido no fechamento)*
+Ferramenta principal: **opencode** em modo agente, com skills de engenharia próprias (planejamento,
+segurança, IA, design) e **spec-kit** para desenvolvimento guiado por especificação. O modelo foi o
+DeepSeek, usado também como provedor do agente.
+
+**Como foi usado** — não como gerador de código solto, mas em ciclos com critério de aceite:
+
+1. **Leitura antes de escrever.** O agente leu os 6 CSVs e o PDF antes de propor qualquer coisa; a
+   análise de dados (volumetria, integridade, divergências) virou premissa documentada e caso de eval.
+2. **Plano com trade-offs explícitos.** Cada decisão relevante teve opções, custo e reversão (ADRs
+   0001–0004). Duas escolhas do plano original foram revertidas por evidência: guard de escopo por
+   regex (virou decisão do modelo) e tipo `C4Context` do Mermaid (layout cruzava rótulos).
+3. **Verificação real, não "deve funcionar".** Toda fase terminou com `pytest`, `ruff`,
+   `docker compose up --build` e, no fim, `scripts/eval.py` contra a API com modelo real.
+4. **Teste antes do conserto.** Todo bug abaixo virou teste de regressão.
+
+**O que o agente errou e como foi pego** (transparência importa mais que a lista de acertos):
+
+| Erro | Como apareceu |
+|---|---|
+| Gate de preço bloqueava resposta **correta** (`R$ 2.199,00` lido como 2.199 + 00) | primeira execução real do CLI |
+| Stoplist de busca mal construída (`(...).__str__().split()` gerava `"('a"`), nenhuma palavra era filtrada | teste com pergunta real, não com `SELECT` de sanidade |
+| Prefixo de 6 caracteres não casava `devolver`/`devolução` | teste de retrieval em linguagem natural |
+| Contexto inflava para 13,4k tokens no 3º turno | leitura do consumo real |
+| `tool_call` fantasma e sem nome no SSE | inspeção do corpo do stream |
+| Endereço respondido de memória em vez de consultar o manual | cenário do próprio enunciado |
+| Encoding corrompido por comando de shell no Windows | conferência de bytes antes do commit |
+
+**Duas sessões de agente rodaram em paralelo por engano** e colidiram no mesmo working tree. O
+histórico ficou entrelaçado (15 commits em 2 minutos, sem duplicação de arquivo). A correção foi
+serializar, adotar o que a outra sessão produziu de melhor (infraestrutura de testes, ADR 0001,
+`uv.lock`) e manter o hábito de commits pequenos por assunto.
+
 
 ---
 
