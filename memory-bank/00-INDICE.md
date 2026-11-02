@@ -12,7 +12,7 @@ tags: [projeto, emporio-da-musica, desafio-artefact, moc]
 > Agente de atendimento ao cliente (PT-BR) para loja fictícia de instrumentos musicais.
 > **Stack:** Python 3.12 · LangChain v1 (`create_agent`, ReAct) · FastAPI · SQLite · FTS5/BM25 · Docker Compose.
 > **Provedores:** OpenAI / Anthropic / DeepSeek por `env`, sem tocar em código.
-> **Fora de escopo (delegado):** UI React, C4 nível 4, embeddings/pgvector.
+> **Fora de escopo:** C4 nível 4, embeddings/pgvector, deploy público, evals no CI.
 
 ## Mapa
 

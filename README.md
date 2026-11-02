@@ -160,8 +160,8 @@ Ponto de partida para quem constrói o front. O contrato completo está em `/doc
 
 **Limitações**
 
-1. **A interface não está neste repositório.** Entrega-se a API com contrato em `/docs`; a UI é
-   integrada por outro time. O chat é consumido por HTTP/SSE.
+1. **Interface simples, sem build step.** É React 18 + htm servido como estático, não um app Vite
+   com roteamento e testes de UI. Serve para demonstrar o contrato, não como produto final.
 2. **SQLite sem réplica horizontal.** Atende o volume; escalar exigiria banco compartilhado.
 3. **Rate limit por origem usa o IP da conexão.** Atrás de proxy, todos compartilham o IP do proxy.
 4. **Auditoria em arquivo**, sem rotação automática nem retenção programada.
@@ -178,7 +178,7 @@ Ponto de partida para quem constrói o front. O contrato completo está em `/doc
 1. Retrieval híbrido: BM25 para recall + embeddings só no rerank dos 10 candidatos.
 2. Evals no CI, com baseline versionado e bloqueio de regressão.
 3. Postgres (dados e sessões) + pgvector, com migração do repositório de dados.
-4. Interface React consumindo o contrato já congelado.
+4. Testes automatizados da interface (hoje ela é validada manualmente no navegador).
 5. Rotação de auditoria, retenção definida e envio para armazenamento.
 6. Rate limit e orçamento distribuídos (Redis) para múltiplas réplicas.
 7. Human-in-the-loop para reclamação e devolução de alto valor.

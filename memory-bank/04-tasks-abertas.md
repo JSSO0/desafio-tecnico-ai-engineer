@@ -20,7 +20,7 @@ tags: [projeto, emporio-da-musica, tarefas]
 
 ## Fora do escopo desta entrega (registrado no README)
 
-- Interface React (delegada, consome o contrato de `/docs`)
+- Testes automatizados da interface (hoje é validada no navegador, não em CI)
 - C4 nível 4 (decisão registrada em `docs/architecture/c4.md`)
 - Embeddings / busca semântica de produto (ADR 0003)
 - Postgres + pgvector (ADR 0003 e README)
