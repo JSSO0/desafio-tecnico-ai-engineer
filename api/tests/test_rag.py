@@ -1,23 +1,15 @@
 import sqlite3
-from contextlib import closing
-from pathlib import Path
 
 import pytest
 
-from app.db.build import build_database
-from app.db.connection import connect
-from app.rag.policies import _STOPWORDS, build_query, extract_terms, normalize, search_policies
-
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-POLICIES_DIR = DATA_DIR / "policies"
-
-
-@pytest.fixture(scope="module")
-def conn(tmp_path_factory: pytest.TempPathFactory):
-    path = tmp_path_factory.mktemp("rag") / "loja.db"
-    build_database(path, DATA_DIR, POLICIES_DIR)
-    with closing(connect(path)) as connection:
-        yield connection
+from app.rag.policies import (
+    _STOPWORDS,
+    MAX_TERMOS,
+    build_query,
+    extract_terms,
+    normalize,
+    search_policies,
+)
 
 
 def test_normalize_strips_accents_and_case() -> None:
@@ -35,6 +27,12 @@ def test_build_query_quotes_terms_and_blocks_fts_operators() -> None:
 def test_build_query_drops_stopwords_and_returns_empty_for_noise() -> None:
     assert build_query("qual é o que a de") == ""
     assert build_query("???") == ""
+
+
+def test_build_query_caps_the_number_of_terms() -> None:
+    pergunta = " ".join(f"termo{indice}" for indice in range(30))
+
+    assert len(extract_terms(pergunta)) == MAX_TERMOS
 
 
 @pytest.mark.parametrize(
@@ -64,6 +62,40 @@ def test_search_handles_natural_language(
     )
 
 
+def test_search_handles_accent_and_case_variants(conn: sqlite3.Connection) -> None:
+    resultados = [
+        tuple(hit.secao for hit in search_policies(conn, texto))
+        for texto in ("devolução", "DEVOLUÇÃO", "devolucao")
+    ]
+
+    assert resultados[0]
+    assert resultados[0] == resultados[1] == resultados[2]
+
+
+def test_prefix_stemming_matches_verb_and_noun(conn: sqlite3.Connection) -> None:
+    """Regressao: com prefixo de 6, 'devolver' nao casava com 'devolucao'."""
+    hits = search_policies(conn, "devolver")
+
+    assert "4.1" in {hit.secao for hit in hits}
+
+
+@pytest.mark.parametrize(
+    "pergunta",
+    [
+        'devolução OR NEAR("x"*)',
+        "devolução -compra *",
+        "devolução) (compra",
+        'devolução "',
+    ],
+)
+def test_search_survives_fts_operators_in_free_text(
+    conn: sqlite3.Connection, pergunta: str
+) -> None:
+    hits = search_policies(conn, pergunta)
+
+    assert "4.1" in {hit.secao for hit in hits}
+
+
 def test_search_is_bounded_and_ordered(conn: sqlite3.Connection) -> None:
     hits = search_policies(conn, "devolução", limit=2)
 
@@ -71,8 +103,25 @@ def test_search_is_bounded_and_ordered(conn: sqlite3.Connection) -> None:
     assert hits[0].cobertura >= hits[-1].cobertura
 
 
+def test_search_clamps_limit_to_supported_range(conn: sqlite3.Connection) -> None:
+    assert len(search_policies(conn, "devolução", limit=0)) == 1
+    assert len(search_policies(conn, "devolução", limit=99)) <= 5
+
+
+def test_search_is_deterministic(conn: sqlite3.Connection) -> None:
+    primeiro = [hit.secao for hit in search_policies(conn, "prazo de garantia")]
+    segundo = [hit.secao for hit in search_policies(conn, "prazo de garantia")]
+
+    assert primeiro == segundo
+    assert "8.1" in primeiro
+
+
 def test_search_returns_nothing_for_off_topic(conn: sqlite3.Connection) -> None:
     assert search_policies(conn, "receita de bolo de cenoura") == []
+
+
+def test_search_returns_nothing_when_only_stopwords_remain(conn: sqlite3.Connection) -> None:
+    assert search_policies(conn, "qual é o que a de para mim") == []
 
 
 def test_hit_carries_provenance(conn: sqlite3.Connection) -> None:
