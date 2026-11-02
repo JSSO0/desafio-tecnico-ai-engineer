@@ -127,6 +127,31 @@ Cinco conversas em [`docs/exemplos/`](docs/exemplos/), **geradas por script** co
 Cada transcrição registra **em qual turno** cada ferramenta foi consultada — é o que demonstra o
 "quando consultar" que o enunciado pede.
 
+## Integração da interface
+
+Ponto de partida para quem constrói o front. O contrato completo está em `/docs` (OpenAPI).
+
+1. **Sessão:** `POST /v1/sessions` devolve `access_token`. Guarde **em memória** — não em
+   `localStorage`, para reduzir exposição a XSS.
+2. **Toda chamada** leva `Authorization: Bearer <access_token>`. Token expirado devolve `401` com
+   `detail.code = expired_token`: basta abrir nova sessão.
+3. **Chat:** `POST /v1/chat` responde `text/event-stream`. Use `fetch` + `ReadableStream` —
+   `EventSource` não envia cabeçalhos, então não funciona com Bearer.
+4. **Renderização:**
+   - concatene `token.delta` (é a resposta em pedaços);
+   - `card` traz o dado estruturado (`produto`, `pedido`, `politica`, `pagamento`) para renderizar
+     como bloco, não como texto;
+   - se chegar `guard` com `acao = substituir_resposta`, **substitua** o texto já renderizado pelo
+     campo `texto` — o gate de preço pode corrigir a resposta depois dos tokens;
+   - `usage` atualiza o medidor de tokens; `done` encerra o turno e traz `request_id`.
+5. **Erros:** `400` mensagem longa · `401` token · `429` rate limit ou orçamento (leia `Retry-After`).
+   Falha no meio do stream chega como evento `error`, não como status HTTP.
+6. **CORS:** liberado para as origens de desenvolvimento (`localhost:5173`, `3000`, `4173`),
+   configurável em `CORS_ORIGINS`. Os cabeçalhos `X-RateLimit-*` e `X-Budget-Remaining` são expostos
+   ao navegador.
+7. **Histórico:** `GET /v1/sessions/{id}/messages` devolve os turnos anteriores, útil para reidratar a
+   tela. `DELETE /v1/sessions/{id}` encerra e apaga o histórico.
+
 ## Limitações conhecidas e o que faria com mais tempo
 
 **Limitações**
