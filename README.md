@@ -240,16 +240,25 @@ specs/          # artefatos de desenvolvimento (spec-kit)
 
 ### Desenvolvimento guiado por especificação
 
-O projeto é construído em fases com **spec-kit** (GitHub Spec-Driven Development), cada uma com
-aprovação explícita antes de avançar. Só os **artefatos** são versionados:
+O projeto começou com **spec-kit** (GitHub Spec-Driven Development), cada fase com aprovação explícita
+antes de avançar. Só os **artefatos** são versionados:
 
 ```
 specs/
-  constitution.md        # princípios do projeto (prioridade em caso de conflito)
-  001-*/spec.md          # o quê e por quê
-  001-*/plan.md          # stack, arquitetura, restrições
-  001-*/tasks.md         # tarefas verificáveis
+  constitution.md          # princípios do projeto (escrita ANTES do código)
+  README.md                # como ler e o que é retrospectivo
+  001-atendimento-por-texto/
+    spec.md                # o quê e por quê
+    plan.md                # stack, arquitetura, riscos
+    tasks.md               # tarefas verificáveis, com o commit de cada uma
 ```
+
+**Honestidade sobre a ordem:** a constituição foi escrita antes da implementação; `spec.md`,
+`plan.md` e `tasks.md` foram escritos **depois**, a partir dos commits e do
+`memory-bank/03-fases-e-gates.md`. Com dois dias de prazo, o custo de cerimônia por fase foi
+timeboxado e o desenvolvimento seguiu com gates registrados no memory-bank. O histórico do Git **não
+foi reescrito** para simular outra ordem — spec retroativa é prática válida de SDD (o próprio
+spec-kit tem `/speckit.converge`), esconder que é retroativo não seria.
 
 As pastas de ferramenta (`.specify/`, `.opencode/`) ficam fora do controle de versão — são
 reproduzíveis com `uvx --from git+https://github.com/github/spec-kit.git specify init` e não
