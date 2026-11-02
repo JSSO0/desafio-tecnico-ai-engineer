@@ -1,4 +1,4 @@
-"""Ambiente dos testes: roda fora do container, sem rede, sem chave e sem tocar os dados de origem.
+﻿"""Ambiente dos testes: roda fora do container, sem rede, sem chave e sem tocar os dados de origem.
 
 As variaveis precisam ser definidas antes de qualquer import de `app` porque `Settings` e
 `app.main` leem o ambiente no import. Por isso o bloco abaixo nao depende de fixture.
@@ -26,6 +26,7 @@ os.environ.update(
         "APP_ENV": "test",
         "DATA_DIR": str(DATA_DIR),
         "DATABASE_PATH": str(_TMP / "loja.db"),
+        "RUNTIME_PATH": str(_TMP / "runtime.db"),
         "LOGS_DIR": str(_TMP / "logs"),
         "LLM_PROVIDER": "deepseek",
         "LLM_MODEL": "deepseek-chat",
@@ -82,3 +83,11 @@ def settings():
     from app.core.config import get_settings
 
     return get_settings()
+
+
+@pytest.fixture(scope="session")
+def store():
+    """Mesmo estado de execucao que a API usa: sessoes, historico e consumo."""
+    from app.runtime.store import RuntimeStore
+
+    return RuntimeStore(Path(os.environ["RUNTIME_PATH"]))

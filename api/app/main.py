@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.agent.prompts import active_prompt_version
+from app.api.chat import router as chat_router
 from app.api.health import router as health_router
+from app.api.sessions import router as sessions_router
 from app.core.config import get_settings
 from app.db.build import build_database
 
@@ -35,11 +38,14 @@ app = FastAPI(
         "API do agente de atendimento da Empório da Música. "
         "Consome dados operacionais (catálogo, pedidos) por ferramentas determinísticas "
         "e políticas internas por recuperação por seção. "
-        "Autenticação por token opaco de sessão (`Authorization: Bearer`)."
+        "Todas as rotas de atendimento exigem `Authorization: Bearer <access_token>` obtido em "
+        "`POST /v1/sessions`. A chave do provedor de LLM nunca sai do servidor."
     ),
     lifespan=lifespan,
 )
 app.include_router(health_router)
+app.include_router(sessions_router)
+app.include_router(chat_router)
 
 
 @app.get("/v1/meta", tags=["ops"], summary="Configuração ativa do agente")
@@ -48,5 +54,6 @@ def meta() -> dict[str, object]:
         "provider": settings.llm_provider,
         "model": settings.llm_model,
         "llm_configured": settings.provider_api_key is not None,
+        "prompt_version": active_prompt_version(),
         "app_version": settings.app_version,
     }
