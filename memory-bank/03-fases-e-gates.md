@@ -168,6 +168,16 @@ Regra: **nenhuma fase avança sem aprovação explícita do dono do projeto.** G
   - `fetch` cross-origin de `:8080` para `:8000`: 200 com `access-control-allow-origin`
 - **Limpeza:** zip removido e cópias soltas na raiz eliminadas (idênticas às de `web/`).
 - **Testes:** 151 verdes (4 novos de CORS).
+- **Conserto do `serve.py`** (depois da integração): o script servia um diretório incompleto em
+  silêncio — foi a causa raiz do "erro de CORS". Agora ele:
+  1. checa `index.html`, `app.js`, `styles.css` e os três arquivos de `vendor/` e falha listando o que
+     falta, com a instrução de correção;
+  2. sonda a porta antes de abrir, porque no Windows `SO_REUSEADDR` faz o segundo processo assumir a
+     mesma porta sem erro — dois servidores no mesmo endereço;
+  3. recusa trocar de porta sozinho, porque origem nova exige `CORS_ORIGINS` e falharia por CORS;
+  4. abre a URL com o mesmo IP do bind (`127.0.0.1`), evitando `localhost` resolver para `::1`.
+  Verificado nos três cenários: sobe normal (200), segunda instância (exit 1), diretório sem vendor
+  (exit 1 com a lista).
 
 ## Cortes acordados (se atrasar)
 
