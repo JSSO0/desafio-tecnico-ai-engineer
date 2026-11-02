@@ -1,6 +1,33 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+class HealthzResponse(BaseModel):
+    status: Literal["ok"] = "ok"
+
+
+class HealthChecks(BaseModel):
+    storage: bool
+    database: bool
+    llm_configured: bool
+
+
+class ReadyzResponse(BaseModel):
+    status: Literal["ready", "not_ready"]
+    checks: HealthChecks
+    provider: str
+    model: str
+
+
+class MetaResponse(BaseModel):
+    provider: str
+    model: str
+    llm_configured: bool
+    prompt_version: str
+    app_version: str
 
 
 class SessionCreated(BaseModel):

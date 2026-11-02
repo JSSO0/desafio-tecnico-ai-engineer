@@ -4,6 +4,7 @@ from contextlib import closing
 
 from fastapi import APIRouter, Response, status
 
+from app.api.schemas import HealthChecks, HealthzResponse, ReadyzResponse
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -11,13 +12,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ops"])
 
 
-@router.get("/healthz", summary="Liveness probe")
-def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+@router.get("/healthz", response_model=HealthzResponse, summary="Liveness probe")
+def healthz() -> HealthzResponse:
+    return HealthzResponse()
 
 
-@router.get("/readyz", summary="Readiness probe")
-def readyz(response: Response) -> dict[str, object]:
+@router.get("/readyz", response_model=ReadyzResponse, summary="Readiness probe")
+def readyz(response: Response) -> ReadyzResponse:
     settings = get_settings()
     storage_ready = settings.database_path.parent.is_dir()
     database_ready = False
@@ -36,13 +37,13 @@ def readyz(response: Response) -> dict[str, object]:
     if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
-    return {
-        "status": "ready" if ready else "not_ready",
-        "checks": {
-            "storage": storage_ready,
-            "database": database_ready,
-            "llm_configured": settings.provider_api_key is not None,
-        },
-        "provider": settings.llm_provider,
-        "model": settings.llm_model,
-    }
+    return ReadyzResponse(
+        status="ready" if ready else "not_ready",
+        checks=HealthChecks(
+            storage=storage_ready,
+            database=database_ready,
+            llm_configured=settings.provider_api_key is not None,
+        ),
+        provider=settings.llm_provider,
+        model=settings.llm_model,
+    )
