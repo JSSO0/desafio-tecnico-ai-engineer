@@ -54,7 +54,7 @@ Eventos SSE: `token`, `tool_call`, `card`, `guard`, `usage`, `done`, `error`.
 | Alucinação de preço | gate determinístico + eval dedicado |
 | Injection despejando dados de cliente | CSV fora do corpus; tools com projeção fixa |
 | BOLA em consulta de pedido | identidade na sessão, nunca no argumento |
-| Custo fora de controle | orçamento por sessão, rate limit, 20 sessões/h por origem |
+| Custo fora de controle | orçamento por sessão, rate limit, 60 sessões/h por origem |
 | Prazo de 2 dias | vertical slice primeiro; cortes acordados antes de começar |
 | Provedor indisponível | erro como evento SSE, sem stack trace ao cliente |
 
