@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     session_ttl_minutes: int = 30
     budget_tokens: int = 60_000
     max_messages_per_minute: int = 10
-    max_sessions_per_hour: int = 20
+    # 60/hora: o eval abre 14 sessoes por execucao e uma pessoa clicando "nova sessao"
+    # durante uma demo nao pode ser bloqueada. Ainda e um freio de denial-of-wallet.
+    max_sessions_per_hour: int = 60
     audit_enabled: bool = True
 
     # origens liberadas para a interface (lista separada por virgula). Vazio desliga o CORS.
