@@ -39,6 +39,45 @@ docker compose up --build
 Para desenvolver a interface sem Docker: `cd web && python serve.py` (sobe em
 <http://localhost:5173>). Detalhes em [`web/README.md`](web/README.md).
 
+### Testando a interface
+
+Abra <http://localhost:8080> e clique em **Iniciar atendimento**. Três mensagens cobrem os caminhos
+principais:
+
+| Digite | O que deve acontecer |
+|---|---|
+| `Quais opções de violões vocês têm disponíveis custando até R$1000?` | chip `buscar_produtos` + card com preço e estoque; **12 itens**, sem o esgotado e o descontinuado |
+| `Oi, meu pedido não chegou. Meu telefone é (67) 98432-1098` | chip `identificar_cliente` + `consultar_pedido`; dois pedidos, um cancelado com motivo |
+| `Me arrependi da compra online, posso devolver?` | chip `consultar_politicas`; prazo de 7 dias, reembolso em 10 dias úteis, §4.1 citada |
+
+O painel **Sessão** mostra consumo de tokens, saldo do orçamento e o estado de `/healthz`, `/readyz`
+e `/v1/meta`. O campo **URL DA API** vem com `http://localhost:8000` e é salvo em `localStorage`.
+
+Para usar o próprio nginx — mesma origem, sem CORS, e o caminho que funciona de outra máquina —
+preencha o campo com a **origem da página** (`http://localhost:8080`) e clique em **Conectar**. O
+nginx encaminha `/v1`, `/healthz`, `/readyz` e `/docs` para a API. Campo vazio volta ao default.
+
+### Problemas comuns
+
+| Sintoma | Causa e saída |
+|---|---|
+| "API offline" no painel | a API não subiu: `docker compose logs api` |
+| `401 expired_token` | sessão de 30 min venceu: **Nova sessão** |
+| `429 rate_limited` | passou de 10 mensagens no minuto; espere o `Retry-After` |
+| `429 too_many_sessions` | 60 sessões/hora por origem; o `eval.py` consome 14 por execução |
+| `400 message_too_long` | mensagem acima de 800 caracteres |
+| Resposta sem preço, pedindo confirmação | o gate atuou: `logs/audit-AAAA-MM-DD.jsonl`, campo `guard` |
+
+```bash
+docker compose ps                        # estado dos servicos
+docker compose logs -f api               # o que a API esta fazendo
+docker compose down                      # para, mantendo os dados
+docker compose down -v                   # apaga tudo: reconstroi a base dos CSVs na proxima subida
+```
+
+A trilha de auditoria fica em `logs/audit-AAAA-MM-DD.jsonl`, um registro por turno, com telefone e
+e-mail mascarados.
+
 ### Trocar de provedor
 
 Uma linha no `.env`, sem tocar em código:
