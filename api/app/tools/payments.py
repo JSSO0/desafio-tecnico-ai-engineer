@@ -15,6 +15,27 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def _min_per_installment(count: int) -> tuple[Decimal, bool]:
+    """(minimo por parcela, exige total acima de 50) segundo a politica 3.1."""
+    if count <= 3:
+        return Decimal("0"), True
+    if count <= 6:
+        return PARCELA_MINIMA[1][1], False
+    return PARCELA_MINIMA[2][1], False
+
+
+def allowed_installments(total: Decimal) -> list[int]:
+    """Quais parcelamentos a regra permite. Calculado aqui: o modelo nao deve adivinhar."""
+    permitidas: list[int] = []
+    for count in range(1, 13):
+        minimum, exige_minimo_total = _min_per_installment(count)
+        if exige_minimo_total and total < FORMA_MINIMA_3X:
+            continue
+        if _money(total / count) >= minimum:
+            permitidas.append(count)
+    return permitidas
+
+
 def make_payment_tools():
     @tool
     def simulate_payment(
@@ -122,6 +143,7 @@ def make_payment_tools():
                     " Parcelas menores sao possiveis."
                 ),
                 "valor_final": brl(base),
+                "parcelas_permitidas": allowed_installments(base),
             }
 
         notes.append("Parcelamento sem juros (politica §3).")
@@ -133,6 +155,7 @@ def make_payment_tools():
             "parcelas": installments,
             "valor_parcela": brl(per_installment),
             "parcela_minima_aplicada": brl(minimum),
+            "parcelas_permitidas": allowed_installments(base),
             "observacoes": notes,
         }
 

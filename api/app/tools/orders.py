@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 
 from langchain.tools import tool
 
@@ -41,6 +42,15 @@ def _order_row(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
         order["rastreio"] = row["tracking_code"]
     if row["estimated_delivery"]:
         order["previsao_entrega"] = row["estimated_delivery"]
+        try:
+            prazo = date.fromisoformat(row["estimated_delivery"])
+        except ValueError:
+            prazo = None
+        if prazo and row["status"] not in {"delivered", "cancelled"}:
+            atraso = (date.today() - prazo).days
+            if atraso > 0:
+                order["atrasado"] = True
+                order["dias_de_atraso"] = atraso
     if row["notes"]:
         order["observacao"] = row["notes"]
     if abs(total - row["total_brl"]) > 0.01:

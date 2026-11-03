@@ -349,3 +349,38 @@ def test_where_tem_um_parametro_para_cada_marcador() -> None:
     ):
         where, params = _where(catalog_filter)
         assert where.count("?") == len(params)
+
+
+# --- atraso e parcelamento: o modelo nao deve inferir (achados da rodada de teste)
+
+
+def test_pedido_atrasado_traz_dias_de_atraso(toolset) -> None:
+    _, tools = toolset
+    tools["identify_customer"].invoke({"phone": "(67) 99654-7821"})  # cliente 2, pedido 8
+
+    out = tools["lookup_order"].invoke({"order_id": 8})
+    order = out["pedido"]
+
+    assert order["atrasado"] is True
+    assert order["dias_de_atraso"] > 100
+
+
+def test_pedido_cancelado_nao_e_marcado_como_atrasado(toolset) -> None:
+    _, tools = toolset
+    tools["identify_customer"].invoke({"phone": "(67) 98432-1098"})  # cliente 3, pedido 19
+
+    out = tools["lookup_order"].invoke({"order_id": 19})
+
+    assert "atrasado" not in out["pedido"]
+
+
+def test_parcelamento_negado_informa_quais_sao_permitidos(toolset) -> None:
+    _, tools = toolset
+
+    out = tools["simulate_payment"].invoke(
+        {"amount": 849, "method": "credito", "installments": 12}
+    )
+
+    assert out["permitido"] is False
+    assert 3 in out["parcelas_permitidas"]
+    assert 12 not in out["parcelas_permitidas"]
