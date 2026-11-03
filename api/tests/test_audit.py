@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from app.audit.log import audit_event, redact
+from app.audit.log import AuditEntry, audit_event, redact
 from app.core.turn import TurnOutcome
 
 
@@ -19,12 +19,14 @@ def test_redige_email() -> None:
 
 def test_auditoria_grava_jsonl_com_campos_obrigatorios(tmp_path: Path) -> None:
     audit_event(
-        logs_dir=tmp_path,
-        request_id="abc123",
-        session_id="sessao1",
-        customer_id=3,
-        message="meu telefone é (67) 98432-1098",
-        outcome=TurnOutcome(
+        tmp_path,
+        AuditEntry(
+            request_id="abc123",
+            session_id="sessao1",
+            customer_id=3,
+            message="meu telefone é (67) 98432-1098",
+        ),
+        TurnOutcome(
             answer="Vou verificar.",
             tools=("consultar_pedido",),
             tokens_in=100,
@@ -37,26 +39,28 @@ def test_auditoria_grava_jsonl_com_campos_obrigatorios(tmp_path: Path) -> None:
 
     arquivos = list(tmp_path.glob("audit-*.jsonl"))
     assert len(arquivos) == 1
-    registro = json.loads(arquivos[0].read_text(encoding="utf-8").strip())
+    record = json.loads(arquivos[0].read_text(encoding="utf-8").strip())
 
-    assert registro["request_id"] == "abc123"
-    assert registro["session_id"] == "sessao1"
-    assert registro["customer_id"] == 3
-    assert registro["tools"] == ["consultar_pedido"]
-    assert registro["tokens_in"] == 100
-    assert registro["prompt_version"] == "v1abc"
-    assert "98432" not in json.dumps(registro)
+    assert record["request_id"] == "abc123"
+    assert record["session_id"] == "sessao1"
+    assert record["customer_id"] == 3
+    assert record["tools"] == ["consultar_pedido"]
+    assert record["tokens_in"] == 100
+    assert record["prompt_version"] == "v1abc"
+    assert "98432" not in json.dumps(record)
 
 
 def test_auditoria_acumula_uma_linha_por_turno(tmp_path: Path) -> None:
     for indice in range(3):
         audit_event(
-            logs_dir=tmp_path,
-            request_id=f"req{indice}",
-            session_id="sessao1",
-            customer_id=None,
-            message="oi",
-            outcome=TurnOutcome(
+            tmp_path,
+            AuditEntry(
+                request_id=f"req{indice}",
+                session_id="sessao1",
+                customer_id=None,
+                message="oi",
+            ),
+            TurnOutcome(
                 answer="oi",
                 tokens_in=1,
                 tokens_out=1,
@@ -66,5 +70,5 @@ def test_auditoria_acumula_uma_linha_por_turno(tmp_path: Path) -> None:
             ),
         )
 
-    arquivo = next(tmp_path.glob("audit-*.jsonl"))
-    assert len(arquivo.read_text(encoding="utf-8").strip().splitlines()) == 3
+    audit_file = next(tmp_path.glob("audit-*.jsonl"))
+    assert len(audit_file.read_text(encoding="utf-8").strip().splitlines()) == 3

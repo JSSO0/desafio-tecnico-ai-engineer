@@ -4,7 +4,7 @@ import pytest
 
 from app.agent.session import SessionContext
 from app.tools import build_tools
-from app.tools.catalog import _where
+from app.tools.catalog import CatalogFilter, _where
 
 PII_KEYS = {"email", "phone", "cpf", "endereco", "city", "customer_id"}
 
@@ -175,12 +175,12 @@ def test_lista_pedidos_do_cliente(toolset) -> None:
     tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
 
     out = tools["consultar_pedido"].invoke({})
-    pedidos = {item["pedido"]: item for item in out["pedidos"]}
+    orders = {item["pedido"]: item for item in out["pedidos"]}
 
-    assert set(pedidos) == {1, 19}
-    assert pedidos[1]["status"] == "entregue"
-    assert pedidos[1]["rastreio"] == "BRAB1234567BR"
-    assert pedidos[19]["status"] == "cancelado"
+    assert set(orders) == {1, 19}
+    assert orders[1]["status"] == "entregue"
+    assert orders[1]["rastreio"] == "BRAB1234567BR"
+    assert orders[19]["status"] == "cancelado"
 
 
 def test_total_divergente_e_sinalizado_nao_corrigido(toolset) -> None:
@@ -188,11 +188,11 @@ def test_total_divergente_e_sinalizado_nao_corrigido(toolset) -> None:
     tools["identificar_cliente"].invoke({"telefone": "(67) 98321-6543"})  # cliente 7
 
     out = tools["consultar_pedido"].invoke({"order_id": 20})
-    pedido = out["pedido"]
+    order = out["pedido"]
 
-    assert pedido["total"] == "R$ 1.400,00"
-    assert pedido["total_divergente"] is True
-    assert "instrucao" in pedido
+    assert order["total"] == "R$ 1.400,00"
+    assert order["total_divergente"] is True
+    assert "instrucao" in order
 
 
 # --- politicas --------------------------------------------------------------
@@ -324,11 +324,11 @@ def test_debito_nao_parcela(toolset) -> None:
 
 
 def test_where_vazio_quando_nao_ha_filtro() -> None:
-    assert _where(None, None, None, None, False) == ("", [])
+    assert _where(CatalogFilter(only_available=False)) == ("", [])
 
 
 def test_where_compoe_clausulas_e_parametros_na_ordem() -> None:
-    where, params = _where("violao", "5", 100.0, 1000.0, True)
+    where, params = _where(CatalogFilter("violao", "5", 100.0, 1000.0, True))
 
     assert where.startswith(" WHERE ")
     assert "stock_quantity > 0" in where
@@ -337,11 +337,11 @@ def test_where_compoe_clausulas_e_parametros_na_ordem() -> None:
 
 def test_where_tem_um_parametro_para_cada_marcador() -> None:
     """Regressao: marcador sem parametro (ou o contrario) quebra a consulta em runtime."""
-    for filtros in (
-        ("violao", None, None, None, True),
-        (None, "violoes", None, None, False),
-        (None, None, 500.0, 1000.0, True),
-        ("aço", "5", 100.0, 2000.0, False),
+    for catalog_filter in (
+        CatalogFilter("violao"),
+        CatalogFilter(category="violoes", only_available=False),
+        CatalogFilter(min_price=500.0, max_price=1000.0),
+        CatalogFilter("aço", "5", 100.0, 2000.0, False),
     ):
-        where, params = _where(*filtros)
+        where, params = _where(catalog_filter)
         assert where.count("?") == len(params)

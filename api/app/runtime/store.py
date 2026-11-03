@@ -154,10 +154,21 @@ class RuntimeStore:
 
     # --- mensagens -------------------------------------------------------
 
-    def append_message(
+    def append_user_message(self, session_id: str, content: str) -> int:
+        return self._append(session_id, "user", content)
+
+    def append_assistant_message(self, session_id: str, outcome: TurnOutcome) -> int:
+        return self._append(
+            session_id,
+            "assistant",
+            outcome.answer,
+            guard=outcome.guard,
+            latency_ms=outcome.latency_ms,
+        )
+
+    def _append(
         self,
         session_id: str,
-        *,
         role: str,
         content: str,
         guard: str | None = None,

@@ -15,7 +15,7 @@ from app.agent.runner import AgentRunner, TurnAccumulator
 from app.agent.session import SessionContext
 from app.api.deps import get_runner, get_store, require_session
 from app.api.schemas import ChatRequest, ErrorResponse
-from app.audit.log import audit_event
+from app.audit.log import AuditEntry, audit_event
 from app.core.config import Settings, get_settings
 from app.core.turn import TurnOutcome
 from app.db.connection import connect
@@ -138,7 +138,7 @@ async def chat(
     if not verdict.allowed:
         return _blocked_response(store, session, payload.message, verdict, settings)
 
-    store.append_message(session.session_id, role="user", content=payload.message)
+    store.append_user_message(session.session_id, payload.message)
     history = _history(store.messages(session.session_id)[:-1])
     agent_session = SessionContext(
         customer_id=session.customer_id, customer_name=session.customer_name
@@ -160,23 +160,19 @@ async def chat(
             store.bind_customer(
                 session.session_id, agent_session.customer_id, agent_session.customer_name
             )
-            message_id = store.append_message(
-                session.session_id,
-                role="assistant",
-                content=outcome.answer,
-                guard=outcome.guard,
-                latency_ms=latency,
-            )
+            message_id = store.append_assistant_message(session.session_id, outcome)
             store.add_usage(session.session_id, outcome)
 
             if settings.audit_enabled:
                 audit_event(
-                    logs_dir=settings.logs_dir,
-                    request_id=request_id,
-                    session_id=session.session_id,
-                    customer_id=agent_session.customer_id,
-                    message=payload.message,
-                    outcome=outcome,
+                    settings.logs_dir,
+                    AuditEntry(
+                        request_id=request_id,
+                        session_id=session.session_id,
+                        customer_id=agent_session.customer_id,
+                        message=payload.message,
+                    ),
+                    outcome,
                 )
 
             yield _sse("usage", store.usage(session))
@@ -221,7 +217,7 @@ def _blocked_response(
     headers = _stream_headers(_rate_headers(limit, window + 1))
 
     async def events() -> AsyncIterator[str]:
-        store.append_message(session.session_id, role="user", content=message)
+        store.append_user_message(session.session_id, message)
         yield _sse("guard", {"tipo": verdict.code, "acao": "responder_fixo"})
         yield _sse("token", {"delta": verdict.response or ""})
 
@@ -231,21 +227,18 @@ def _blocked_response(
             prompt_version="guard",
             model=settings.llm_model,
         )
-        message_id = store.append_message(
-            session.session_id,
-            role="assistant",
-            content=outcome.answer,
-            guard=outcome.guard,
-        )
+        message_id = store.append_assistant_message(session.session_id, outcome)
 
         if settings.audit_enabled:
             audit_event(
-                logs_dir=settings.logs_dir,
-                request_id=request_id,
-                session_id=session.session_id,
-                customer_id=session.customer_id,
-                message=message,
-                outcome=outcome,
+                settings.logs_dir,
+                AuditEntry(
+                    request_id=request_id,
+                    session_id=session.session_id,
+                    customer_id=session.customer_id,
+                    message=message,
+                ),
+                outcome,
             )
 
         yield _sse("usage", store.usage(session))

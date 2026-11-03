@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import dataclass
 
 from langchain.tools import tool
 
@@ -31,38 +32,45 @@ def _product_card(row: sqlite3.Row) -> dict[str, object]:
     return card
 
 
-def _where(
-    termo: str | None,
-    categoria: str | None,
-    preco_min: float | None,
-    preco_max: float | None,
-    somente_disponiveis: bool,
-) -> tuple[str, list[object]]:
+@dataclass(frozen=True)
+class CatalogFilter:
+    """Filtro do catalogo como objeto: cinco campos opcionais nao viram cinco parametros."""
+
+    term: str | None = None
+    category: str | None = None
+    min_price: float | None = None
+    max_price: float | None = None
+    only_available: bool = True
+
+
+def _where(catalog_filter: CatalogFilter) -> tuple[str, list[object]]:
     """Clausula e parametros na ordem certa. Pura, testavel sem banco."""
     clauses: list[str] = []
     params: list[object] = []
 
-    if termo:
+    if catalog_filter.term:
         clauses.append("(instr(unaccent(name), ?) > 0 OR instr(unaccent(description), ?) > 0)")
-        params.extend([normalize(termo), normalize(termo)])
-    if categoria:
+        params.extend([normalize(catalog_filter.term), normalize(catalog_filter.term)])
+    if catalog_filter.category:
         clauses.append("(instr(unaccent(category_name), ?) > 0 OR CAST(category_id AS TEXT) = ?)")
-        params.extend([normalize(categoria), categoria.strip()])
-    if preco_min is not None:
+        params.extend([normalize(catalog_filter.category), catalog_filter.category.strip()])
+    if catalog_filter.min_price is not None:
         clauses.append("price_final >= ?")
-        params.append(float(preco_min))
-    if preco_max is not None:
+        params.append(float(catalog_filter.min_price))
+    if catalog_filter.max_price is not None:
         clauses.append("price_final <= ?")
-        params.append(float(preco_max))
-    if somente_disponiveis:
+        params.append(float(catalog_filter.max_price))
+    if catalog_filter.only_available:
         clauses.append("stock_quantity > 0 AND status = 'active'")
 
     return (f" WHERE {' AND '.join(clauses)}" if clauses else ""), params
 
 
 def make_catalog_tools(conn: sqlite3.Connection):
+    # Excecao consciente ao limite de parametros: a assinatura e o schema que o modelo le.
+    # Aninhar em um objeto trocaria a legibilidade do modelo por estetica de assinatura.
     @tool
-    def buscar_produtos(
+    def buscar_produtos(  # noqa: PLR0913
         termo: str | None = None,
         categoria: str | None = None,
         preco_min: float | None = None,
@@ -86,7 +94,9 @@ def make_catalog_tools(conn: sqlite3.Connection):
         Returns:
             total_encontrado, itens e uma observacao quando nada casa com o filtro.
         """
-        where, params = _where(termo, categoria, preco_min, preco_max, somente_disponiveis)
+        where, params = _where(
+            CatalogFilter(termo, categoria, preco_min, preco_max, somente_disponiveis)
+        )
         limite = max(1, min(int(limite), 20))
 
         total = conn.execute(f"SELECT COUNT(*) FROM v_products{where}", params).fetchone()[0]

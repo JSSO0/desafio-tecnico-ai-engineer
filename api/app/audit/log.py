@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -27,22 +28,24 @@ def redact(text: str) -> str:
     return _PHONE.sub("[telefone]", sem_email)
 
 
-def audit_event(
-    *,
-    logs_dir: Path,
-    request_id: str,
-    session_id: str,
-    customer_id: int | None,
-    message: str,
-    outcome: TurnOutcome,
-) -> None:
-    registro = {
+@dataclass(frozen=True)
+class AuditEntry:
+    """Quem falou e onde: identidade do registro, separada do que o turno produziu."""
+
+    request_id: str
+    session_id: str
+    customer_id: int | None
+    message: str
+
+
+def audit_event(logs_dir: Path, entry: AuditEntry, outcome: TurnOutcome) -> None:
+    record = {
         "ts": datetime.now(UTC).isoformat(),
-        "request_id": request_id,
-        "session_id": session_id,
-        "customer_id": customer_id,
-        "message_chars": len(message),
-        "message": redact(message),
+        "request_id": entry.request_id,
+        "session_id": entry.session_id,
+        "customer_id": entry.customer_id,
+        "message_chars": len(entry.message),
+        "message": redact(entry.message),
         "tools": list(outcome.tools),
         "guard": outcome.guard,
         "tokens_in": outcome.tokens_in,
@@ -54,9 +57,9 @@ def audit_event(
 
     try:
         logs_dir.mkdir(parents=True, exist_ok=True)
-        arquivo = logs_dir / f"audit-{datetime.now(UTC):%Y-%m-%d}.jsonl"
-        with arquivo.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(registro, ensure_ascii=False) + "\n")
+        audit_path = logs_dir / f"audit-{datetime.now(UTC):%Y-%m-%d}.jsonl"
+        with audit_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
     except OSError:
         # auditoria nao pode derrubar atendimento; a falha fica no log da aplicacao
         logger.exception("nao foi possivel escrever a trilha de auditoria")
