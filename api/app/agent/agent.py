@@ -8,7 +8,7 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.messages import AIMessage, HumanMessage
 
-from app.agent.prompts import active_prompt_version, load_prompt
+from app.agent.prompts import active_prompt_version, system_prompt_for
 from app.agent.session import SessionContext
 from app.core.config import Settings, get_settings
 from app.guards.grounding import enforce_price_grounding
@@ -45,7 +45,7 @@ def build_agent(session: SessionContext, conn: sqlite3.Connection, *, model: Any
     return create_agent(
         model=model or build_model(),
         tools=build_tools(session, conn),
-        system_prompt=load_prompt(),
+        system_prompt=system_prompt_for(session.customer_name),
         name="emporio-atendimento",
     )
 

@@ -22,3 +22,21 @@ def load_prompt(name: str = "v1") -> str:
 
 def active_prompt_version() -> str:
     return prompt_version(load_prompt())
+
+
+def system_prompt_for(customer_name: str | None = None) -> str:
+    """Prompt base + estado da sessao.
+
+    Sem isto o modelo nao sabe que o cliente ja foi identificado (o historico guarda a
+    conversa, nao o resultado das ferramentas) e pede o telefone de novo no turno seguinte.
+    """
+    base = load_prompt()
+    if not customer_name:
+        return base
+    primeiro_nome = customer_name.split()[0]
+    return (
+        base
+        + "\n\n# Estado desta sessão\n"
+        + f"O cliente já foi identificado nesta conversa: {primeiro_nome}. "
+        + "Não peça o telefone de novo; consulte os pedidos direto.\n"
+    )

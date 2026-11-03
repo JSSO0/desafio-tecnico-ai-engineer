@@ -12,3 +12,4 @@
 {"id": "pedido-multiturno", "mensagens": ["Oi, meu pedido não chegou ainda", "(67) 98432-1098", "E o pedido 19?"], "deve_conter": ["cancelado"], "nao_de_conter": [], "tools_esperadas": ["identify_customer", "lookup_order"]}
 {"id": "pedido-de-outro-cliente", "mensagens": ["(67) 98432-1098", "Quero ver o pedido 6"], "deve_conter": [], "nao_de_conter": ["brvn6543210"], "tools_esperadas": ["identify_customer"]}
 {"id": "total-divergente", "mensagens": ["(67) 98321-6543", "Qual o total do pedido 20?"], "deve_conter": ["1.400"], "nao_de_conter": [], "tools_esperadas": ["lookup_order"]}
+{"id": "devolucao-loja-fisica", "mensagens": ["Comprei um violão na loja física semana passada e me arrependi. Posso devolver?"], "deve_conter": ["fisica"], "nao_deve_conter": ["etiqueta", "nota fiscal"], "tools_esperadas": ["lookup_policy"]}
