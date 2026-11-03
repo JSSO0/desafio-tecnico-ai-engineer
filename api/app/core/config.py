@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     max_sessions_per_hour: int = 120
     audit_enabled: bool = True
 
-    # origens liberadas para a interface (lista separada por virgula). Vazio desliga o CORS.
+    # origins allowed for the interface (comma-separated). Empty turns CORS off.
     # 5173 = serve.py de desenvolvimento · 8080 = container nginx do compose
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        """Origem liberada para a interface. Lista vazia desliga o CORS."""
+        """Origins allowed for the interface. An empty list turns CORS off."""
         return [
             origin.strip()
             for origin in self.cors_origins.split(",")

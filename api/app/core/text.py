@@ -8,7 +8,7 @@ _NON_DIGIT = re.compile(r"\D")
 
 
 def normalize(text: str) -> str:
-    """Minusculas e sem acento, para comparar texto livre com os dados da loja."""
+    """Lowercase and unaccented, to compare free text against store data."""
     decomposed = unicodedata.normalize("NFKD", text or "")
     return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).lower()
 
@@ -18,7 +18,7 @@ def only_digits(value: str) -> str:
 
 
 def brl(value: float | Decimal) -> str:
-    """Formata 2199.0 como 'R$ 2.199,00' — o modelo deve copiar, nao calcular."""
+    """Formats 2199.0 as 'R$ 2.199,00' — the model should copy it, not compute it."""
     whole, _, cents = f"{Decimal(str(value)):.2f}".partition(".")
     groups = []
     while len(whole) > 3:

@@ -10,11 +10,11 @@ class EmporioError(Exception):
 
 
 class DataSourceError(EmporioError):
-    """Dado de origem ausente, duplicado ou invalido: CSV, JSON de specs, arquivo de politica."""
+    """Missing, duplicated or invalid source data: CSV, specs JSON, policy file."""
 
 
 class SessionError(EmporioError):
-    """Falha de sessao com o codigo que a API devolve ao cliente."""
+    """Session failure carrying the code the API returns to the client."""
 
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)

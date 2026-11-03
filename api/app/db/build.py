@@ -65,7 +65,7 @@ def _split_front_matter(raw: str) -> tuple[dict[str, str], str]:
 
 
 def _split_blocks(body: str) -> list[tuple[str, str, str]]:
-    """Divide o corpo em (secao, titulo, texto). Sem '##', o corpo inteiro e um bloco."""
+    """Splits the body into (section, title, text). Without '##' the whole body is one block."""
     headings = list(_HEADING.finditer(body))
     if not headings:
         return [("", "", body.strip())]
@@ -256,7 +256,7 @@ def _insert_policies(conn: sqlite3.Connection, policies_dir: Path) -> int:
 
 
 def data_quality_report(conn: sqlite3.Connection) -> dict[str, list[dict[str, object]]]:
-    """Divergencias conhecidas nos dados de origem. Reportadas, nunca corrigidas em silencio."""
+    """Known divergences in the source data. Reported, never silently corrected."""
     mismatched_totals = [
         {
             "order_id": order_id,

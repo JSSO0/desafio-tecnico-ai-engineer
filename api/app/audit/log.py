@@ -23,14 +23,14 @@ _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]{2,}")
 
 
 def redact(text: str) -> str:
-    """Mascara telefone e e-mail. Aplicado antes de qualquer escrita em disco."""
+    """Masks phone and e-mail. Applied before anything is written to disk."""
     sem_email = _EMAIL.sub("[email]", text or "")
     return _PHONE.sub("[telefone]", sem_email)
 
 
 @dataclass(frozen=True)
 class AuditEntry:
-    """Quem falou e onde: identidade do registro, separada do que o turno produziu."""
+    """Who spoke and where: record identity, kept apart from what the turn produced."""
 
     request_id: str
     session_id: str
@@ -61,5 +61,5 @@ def audit_event(logs_dir: Path, entry: AuditEntry, outcome: TurnOutcome) -> None
         with audit_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
     except OSError:
-        # auditoria nao pode derrubar atendimento; a falha fica no log da aplicacao
+        # audit must never take support down; the failure goes to the application log
         logger.exception("nao foi possivel escrever a trilha de auditoria")

@@ -45,7 +45,7 @@ def require_session(
     store: Annotated[RuntimeStore, Depends(get_store)] = None,
     settings: Annotated[Settings, Depends(get_settings)] = None,
 ) -> Session:
-    """Autentica por token opaco de sessao. Token invalido, revogado e expirado sao 401."""
+    """Authenticates by opaque session token. Invalid, revoked and expired tokens are all 401."""
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise _unauthorized("missing_token", "Envie o cabecalho Authorization: Bearer <token>.")
 
@@ -56,7 +56,7 @@ def require_session(
 
 
 def assert_own_session(session: Session, session_id: str) -> None:
-    """O token so acessa a propria sessao: id na URL nao e credencial."""
+    """The token only reaches its own session: the id in the URL is not a credential."""
     if session.session_id != session_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

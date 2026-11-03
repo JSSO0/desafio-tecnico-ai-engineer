@@ -54,7 +54,7 @@ def _order_row(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
     if row["notes"]:
         order["observacao"] = row["notes"]
     if abs(total - row["total_brl"]) > 0.01:
-        # divergencia conhecida da base: reportar o total gravado, nunca recalcular
+        # known divergence in the data: report the stored total, never recompute it
         order["total_divergente"] = True
         order["instrucao"] = (
             "O total gravado difere da soma dos itens. Informe o total do pedido e, se o cliente"
@@ -140,7 +140,7 @@ def make_order_tools(conn: sqlite3.Connection, session: SessionContext):
         ).fetchone()
 
         if row is None:
-            # mesma resposta para "nao existe" e "nao e seu": nao confirma existencia
+            # same answer for "does not exist" and "not yours": never confirms existence
             return {
                 "encontrado": False,
                 "mensagem": "Nao encontrei esse pedido no cadastro deste cliente.",

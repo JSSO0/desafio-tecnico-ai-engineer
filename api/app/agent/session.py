@@ -5,9 +5,9 @@ from dataclasses import dataclass
 
 @dataclass
 class SessionContext:
-    """Estado de atendimento que o modelo nao controla.
+    """Support state the model does not control.
 
-    A identidade do cliente fica aqui, no servidor: as ferramentas leem daqui, nunca do
+    Customer identity lives here, on the server: tools read from here, never from
     argumento que o modelo inventou. E o que impede IDOR/BOLA via prompt injection.
     """
 

@@ -49,7 +49,7 @@ def _sse(event: str, data: dict[str, Any]) -> str:
 
 
 def _history(mensagens: list[dict[str, Any]]) -> list[Any]:
-    """Historico so com a conversa: resultados de ferramenta ficam fora do contexto."""
+    """History with the conversation only: tool results stay out of the context."""
     history: list[Any] = []
     for item in mensagens:
         if item["role"] == "user":
@@ -186,7 +186,7 @@ async def chat(
                 },
             )
         except Exception:
-            # o status HTTP ja foi enviado; a falha vai como evento, nao como stack trace
+            # the HTTP status is already sent; the failure goes as an event, not as a stack trace
             logger.exception("falha no turno %s da sessao %s", request_id, session.session_id)
             yield _sse(
                 "error",

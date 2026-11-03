@@ -35,7 +35,7 @@ STOPWORDS_PATH = Path(__file__).with_name("stopwords.txt")
 
 @lru_cache
 def load_stopwords() -> frozenset[str]:
-    """Stopwords ficam em arquivo porque sao dado de dominio, ajustado por observacao."""
+    """Stopwords live in a file because they are domain data, tuned by observation."""
     lines = STOPWORDS_PATH.read_text(encoding="utf-8").splitlines()
     return frozenset(
         palavra
@@ -83,7 +83,7 @@ def extract_terms(question: str) -> list[str]:
 
 
 def build_query(question: str) -> str:
-    """Transforma texto livre em expressao FTS segura. Retorna "" quando nao ha termo util."""
+    """Turns free text into a safe FTS expression. Returns "" when there is no usable term."""
     terms = extract_terms(question)
     if not terms:
         return ""
@@ -101,7 +101,7 @@ def _prefix(term: str) -> str:
 
 
 def _term_weights(conn: sqlite3.Connection, terms: list[str]) -> dict[str, float]:
-    """IDF sobre os blocos do manual: termo raro pesa mais que termo onipresente."""
+    """IDF over the manual blocks: a rare term weighs more than an omnipresent one."""
     total = conn.execute("SELECT COUNT(*) FROM policies").fetchone()[0] or 1
     weights: dict[str, float] = {}
     for term in terms:

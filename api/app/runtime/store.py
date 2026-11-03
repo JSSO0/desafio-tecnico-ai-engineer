@@ -49,7 +49,7 @@ class RuntimeStore:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    # --- sessoes ---------------------------------------------------------
+    # --- sessions --------------------------------------------------------
 
     def create(self, ttl_minutes: int, budget_tokens: int) -> tuple[str, Session]:
         token = secrets.token_urlsafe(32)
@@ -195,7 +195,7 @@ class RuntimeStore:
     # --- limites ---------------------------------------------------------
 
     def recent_turns(self, session_id: str, window_seconds: int = 60) -> int:
-        """Mensagens do usuario na janela: base do rate limit por sessao."""
+        """User messages inside the window: the basis for the per-session rate limit."""
         cutoff = (_now() - timedelta(seconds=window_seconds)).isoformat()
         with closing(self._connect()) as conn:
             row = conn.execute(

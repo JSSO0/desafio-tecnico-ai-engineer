@@ -8,7 +8,7 @@ PROMPTS_DIR = Path(__file__).with_name("prompts")
 
 
 def prompt_version(text: str) -> str:
-    """Hash curto do prompt: vai para o log de auditoria, para saber o que respondeu o que."""
+    """Short prompt hash: goes to the audit log, so we know which prompt answered what."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
@@ -25,10 +25,10 @@ def active_prompt_version() -> str:
 
 
 def system_prompt_for(customer_name: str | None = None) -> str:
-    """Prompt base + estado da sessao.
+    """Base prompt + session state.
 
-    Sem isto o modelo nao sabe que o cliente ja foi identificado (o historico guarda a
-    conversa, nao o resultado das ferramentas) e pede o telefone de novo no turno seguinte.
+    Without this the model does not know the customer is already identified (history keeps the
+    conversation, not tool results) and asks for the phone again on the next turn.
     """
     base = load_prompt()
     if not customer_name:

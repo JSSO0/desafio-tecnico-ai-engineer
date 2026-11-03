@@ -59,7 +59,7 @@ if origins:
         allow_origins=origins,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
-        # sem isto o navegador nao consegue ler os cabecalhos de limite e orcamento
+        # without this the browser cannot read the limit and budget headers
         expose_headers=[
             "X-RateLimit-Limit",
             "X-RateLimit-Remaining",

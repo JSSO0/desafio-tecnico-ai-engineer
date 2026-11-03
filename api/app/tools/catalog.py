@@ -34,7 +34,7 @@ def _product_card(row: sqlite3.Row) -> dict[str, object]:
 
 @dataclass(frozen=True)
 class CatalogFilter:
-    """Filtro do catalogo como objeto: cinco campos opcionais nao viram cinco parametros."""
+    """Catalogue filter as an object: five optional fields do not become five parameters."""
 
     term: str | None = None
     category: str | None = None

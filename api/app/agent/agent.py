@@ -51,7 +51,7 @@ def build_agent(session: SessionContext, conn: sqlite3.Connection, *, model: Any
 
 
 def message_text(content: Any) -> str:
-    """Conteudo de mensagem pode ser str ou lista de blocos, dependendo do provedor."""
+    """Message content may be a str or a list of blocks, depending on the provider."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -87,9 +87,9 @@ def run_turn(agent: Any, history: list[Any], message: str) -> TurnResult:
 
     guardado, guard = enforce_price_grounding(answer, "\n".join(tool_output))
 
-    # O historico guarda a conversa, nao os resultados de ferramenta: reenviar todos os payloads
-    # a cada turno faz o contexto crescer sem limite (13k tokens no terceiro turno). O agente
-    # reconsulta quando precisa — e barato e o dado vem sempre atualizado. O que ficou de fora
+    # History keeps the conversation, not tool results: resending every payload
+    # each turn makes context grow without bound (13k tokens by the third turn). The agent
+    # queries again when needed — it is cheap and the data is always current. What stayed out
     # continua no log de auditoria.
     historico = [HumanMessage(message), AIMessage(guardado)]
 

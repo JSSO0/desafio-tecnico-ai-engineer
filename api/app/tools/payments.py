@@ -16,7 +16,7 @@ def _money(value: Decimal) -> Decimal:
 
 
 def _min_per_installment(count: int) -> tuple[Decimal, bool]:
-    """(minimo por parcela, exige total acima de 50) segundo a politica 3.1."""
+    """(minimum per installment, whether a minimum total applies) per policy 3.1."""
     if count <= 3:
         return Decimal("0"), True
     if count <= 6:
@@ -25,7 +25,7 @@ def _min_per_installment(count: int) -> tuple[Decimal, bool]:
 
 
 def allowed_installments(total: Decimal) -> list[int]:
-    """Quais parcelamentos a regra permite. Calculado aqui: o modelo nao deve adivinhar."""
+    """Which installment counts the rule allows. Computed here: the model must not guess."""
     permitidas: list[int] = []
     for count in range(1, 13):
         minimum, exige_minimo_total = _min_per_installment(count)

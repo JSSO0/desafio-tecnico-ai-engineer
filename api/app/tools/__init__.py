@@ -12,7 +12,7 @@ from app.tools.policies import make_policy_tools
 
 
 def build_tools(session: SessionContext, conn: sqlite3.Connection) -> list[BaseTool]:
-    """Ferramentas da sessao. O estado do cliente fica na closure, fora do alcance do modelo."""
+    """Session tools. Customer state lives in the closure, out of the model's reach."""
     return [
         *make_catalog_tools(conn),
         *make_order_tools(conn, session),

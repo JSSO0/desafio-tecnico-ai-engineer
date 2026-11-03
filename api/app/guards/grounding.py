@@ -33,7 +33,7 @@ def _to_decimal(raw: str) -> Decimal | None:
 
 
 def extract_amounts(text: str) -> list[Decimal]:
-    """Valores em reais citados no texto, em ordem de aparicao."""
+    """Amounts in reais quoted in the text, in order of appearance."""
     return [value for match in MONEY.finditer(text or "") if (value := _to_decimal(match.group(1)))]
 
 
@@ -53,7 +53,7 @@ def grounded_values(tool_output: str) -> set[Decimal]:
 
 
 def enforce_price_grounding(answer: str, tool_output: str) -> tuple[str, str | None]:
-    """Devolve (resposta_final, guard_aplicado). guard_aplicado e None quando nada foi bloqueado."""
+    """Returns (final_answer, guard_applied). guard_applied is None when nothing was blocked."""
     amounts = extract_amounts(answer)
     if not amounts:
         return answer, None

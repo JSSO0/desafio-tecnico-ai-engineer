@@ -26,7 +26,7 @@ _CARD_TOOLS = {
 
 @dataclass
 class TurnAccumulator:
-    """O que o turno produziu. Preenchido durante o streaming, lido depois para persistir."""
+    """What the turn produced. Filled during streaming, read afterwards to persist."""
 
     answer: str = ""
     raw_answer: str = ""
@@ -71,9 +71,9 @@ def _card(tool_name: str, content: str) -> dict[str, Any] | None:
 class AgentRunner:
     """Executa um turno e emite eventos. Tokens saem em streaming, de verdade.
 
-    O gate de preco roda no fim, depois de os tokens ja terem saido. Por isso, quando ele
-    bloqueia, emitimos `guard` com a acao `substituir_resposta` e o texto seguro: o cliente
-    deve trocar o que ja renderizou. O texto final e sempre o autoritativo.
+    The price gate runs at the end, after the tokens are already gone. So, when it
+    blocks, we emit `guard` with the action `substituir_resposta` and the safe text: the client
+    must replace what it already rendered. The final text is always authoritative.
     """
 
     async def stream(
@@ -99,7 +99,7 @@ class AgentRunner:
                 acc.tokens_in += int(usage.get("input_tokens", 0) or 0)
                 acc.tokens_out += int(usage.get("output_tokens", 0) or 0)
 
-                # chunks trazem fragmentos de tool call: descarta os sem nome e nao repete o id
+                # chunks carry tool-call fragments: drop the unnamed ones and never repeat an id
                 calls = [call for call in (chunk.tool_calls or []) if call.get("name")]
                 if calls:
                     parts.clear()  # texto antes de uma chamada nao e resposta final
