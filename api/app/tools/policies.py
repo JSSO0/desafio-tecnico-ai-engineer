@@ -9,7 +9,7 @@ from app.rag.policies import search_policies
 
 def make_policy_tools(conn: sqlite3.Connection):
     @tool
-    def consultar_politicas(pergunta: str, limite: int = 3) -> dict[str, object]:
+    def lookup_policy(question: str, limit: int = 3) -> dict[str, object]:
         """Regras da loja: trocas, devolucoes, frete, pagamento, garantia, horario, privacidade.
 
         Use para qualquer duvida de procedimento ("posso devolver?", "aceita pix?",
@@ -19,7 +19,7 @@ def make_policy_tools(conn: sqlite3.Connection):
             pergunta: a duvida do cliente em linguagem natural.
             limite: quantos trechos devolver (1 a 5, padrao 3).
         """
-        hits = search_policies(conn, pergunta, limit=limite)
+        hits = search_policies(conn, question, limit=limit)
 
         if not hits:
             return {
@@ -35,4 +35,4 @@ def make_policy_tools(conn: sqlite3.Connection):
             ],
         }
 
-    return [consultar_politicas]
+    return [lookup_policy]

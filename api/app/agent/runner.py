@@ -16,11 +16,11 @@ from app.core.turn import TurnOutcome
 from app.guards.grounding import enforce_price_grounding
 
 _CARD_TOOLS = {
-    "buscar_produtos": "produto",
-    "detalhe_produto": "produto",
-    "consultar_pedido": "pedido",
-    "consultar_politicas": "politica",
-    "simular_pagamento": "pagamento",
+    "search_products": "produto",
+    "product_detail": "produto",
+    "lookup_order": "pedido",
+    "lookup_policy": "politica",
+    "simulate_payment": "pagamento",
 }
 
 

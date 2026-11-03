@@ -55,7 +55,7 @@ def _order_row(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
 
 def make_order_tools(conn: sqlite3.Connection, session: SessionContext):
     @tool
-    def identificar_cliente(telefone: str) -> dict[str, object]:
+    def identify_customer(phone: str) -> dict[str, object]:
         """Identifica o cliente pelo telefone e vincula este atendimento a ele.
 
         Use antes de qualquer consulta de pedido. Nunca peca CPF.
@@ -63,7 +63,7 @@ def make_order_tools(conn: sqlite3.Connection, session: SessionContext):
         Args:
             telefone: telefone informado pelo cliente, com ou sem formatacao.
         """
-        digits = only_digits(telefone)
+        digits = only_digits(phone)
         if digits.startswith("55") and len(digits) > 11:
             digits = digits[2:]
 
@@ -97,7 +97,7 @@ def make_order_tools(conn: sqlite3.Connection, session: SessionContext):
         }
 
     @tool
-    def consultar_pedido(order_id: int | None = None) -> dict[str, object]:
+    def lookup_order(order_id: int | None = None) -> dict[str, object]:
         """Pedidos do cliente ja identificado: status, itens, rastreio e previsao.
 
         Sem order_id, lista todos os pedidos do cliente. So consulta pedidos do cliente
@@ -138,4 +138,4 @@ def make_order_tools(conn: sqlite3.Connection, session: SessionContext):
 
         return {"encontrado": True, "pedido": _order_row(conn, row)}
 
-    return [identificar_cliente, consultar_pedido]
+    return [identify_customer, lookup_order]

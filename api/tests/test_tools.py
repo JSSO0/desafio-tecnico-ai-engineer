@@ -21,7 +21,7 @@ def toolset(conn: sqlite3.Connection):
 def test_violoes_ate_mil_traz_doze_disponiveis(toolset) -> None:
     _, tools = toolset
 
-    out = tools["buscar_produtos"].invoke({"categoria": "violoes", "preco_max": 1000})
+    out = tools["search_products"].invoke({"category": "violoes", "max_price": 1000})
 
     assert out["total_encontrado"] == 12
     ids = {item["product_id"] for item in out["produtos"]}
@@ -31,8 +31,8 @@ def test_violoes_ate_mil_traz_doze_disponiveis(toolset) -> None:
 def test_inclui_indisponiveis_quando_pedido(toolset) -> None:
     _, tools = toolset
 
-    out = tools["buscar_produtos"].invoke(
-        {"categoria": "5", "preco_max": 1000, "somente_disponiveis": False}
+    out = tools["search_products"].invoke(
+        {"category": "5", "max_price": 1000, "only_available": False}
     )
 
     assert out["total_encontrado"] == 14
@@ -41,7 +41,7 @@ def test_inclui_indisponiveis_quando_pedido(toolset) -> None:
 def test_busca_sem_resultado_orienta_ajuste(toolset) -> None:
     _, tools = toolset
 
-    out = tools["buscar_produtos"].invoke({"termo": "saxofone"})
+    out = tools["search_products"].invoke({"query": "saxofone"})
 
     assert out["total_encontrado"] == 0
     assert out["produtos"] == []
@@ -51,14 +51,14 @@ def test_busca_sem_resultado_orienta_ajuste(toolset) -> None:
 def test_limite_da_busca_e_limitado_entre_1_e_20(toolset) -> None:
     _, tools = toolset
 
-    assert tools["buscar_produtos"].invoke({"limite": 0})["retornados"] == 1
-    assert tools["buscar_produtos"].invoke({"limite": 99})["retornados"] <= 20
+    assert tools["search_products"].invoke({"limit": 0})["retornados"] == 1
+    assert tools["search_products"].invoke({"limit": 99})["retornados"] <= 20
 
 
 def test_card_de_produto_nao_expoe_pii(toolset) -> None:
     _, tools = toolset
 
-    out = tools["buscar_produtos"].invoke({"categoria": "violoes"})
+    out = tools["search_products"].invoke({"category": "violoes"})
 
     assert out["produtos"]
     for card in out["produtos"]:
@@ -68,7 +68,7 @@ def test_card_de_produto_nao_expoe_pii(toolset) -> None:
 def test_detalhe_do_takamine_gd20(toolset) -> None:
     _, tools = toolset
 
-    out = tools["detalhe_produto"].invoke({"nome_ou_id": "Takamine GD20"})
+    out = tools["product_detail"].invoke({"name_or_id": "Takamine GD20"})
 
     assert out["encontrado"] is True
     assert out["preco"] == "R$ 2.199,00"
@@ -78,7 +78,7 @@ def test_detalhe_do_takamine_gd20(toolset) -> None:
 def test_detalhe_ignora_acento_e_caixa(toolset) -> None:
     _, tools = toolset
 
-    out = tools["detalhe_produto"].invoke({"nome_ou_id": "takamine gd20"})
+    out = tools["product_detail"].invoke({"name_or_id": "takamine gd20"})
 
     assert out["encontrado"] is True
     assert out["product_id"] == 95
@@ -87,7 +87,7 @@ def test_detalhe_ignora_acento_e_caixa(toolset) -> None:
 def test_detalhe_por_id_aplica_promocao_ativa(toolset) -> None:
     _, tools = toolset
 
-    out = tools["detalhe_produto"].invoke({"nome_ou_id": "127"})
+    out = tools["product_detail"].invoke({"name_or_id": "127"})
 
     assert out["desconto_percent"] == 10
     assert out["preco_com_desconto"] == "R$ 323,10"
@@ -96,7 +96,7 @@ def test_detalhe_por_id_aplica_promocao_ativa(toolset) -> None:
 def test_detalhe_inexistente_nao_inventa(toolset) -> None:
     _, tools = toolset
 
-    out = tools["detalhe_produto"].invoke({"nome_ou_id": "Saxofone Selmer"})
+    out = tools["product_detail"].invoke({"name_or_id": "Saxofone Selmer"})
 
     assert out["encontrado"] is False
     assert "preco" not in out
@@ -108,7 +108,7 @@ def test_detalhe_inexistente_nao_inventa(toolset) -> None:
 def test_identifica_cliente_pelo_telefone(toolset) -> None:
     session, tools = toolset
 
-    out = tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
+    out = tools["identify_customer"].invoke({"phone": "(67) 98432-1098"})
 
     assert out["identificado"] is True
     assert out["primeiro_nome"] == "Pedro"
@@ -118,7 +118,7 @@ def test_identifica_cliente_pelo_telefone(toolset) -> None:
 def test_aceita_telefone_com_codigo_do_pais(toolset) -> None:
     _, tools = toolset
 
-    out = tools["identificar_cliente"].invoke({"telefone": "5567984321098"})
+    out = tools["identify_customer"].invoke({"phone": "5567984321098"})
 
     assert out["identificado"] is True
 
@@ -126,7 +126,7 @@ def test_aceita_telefone_com_codigo_do_pais(toolset) -> None:
 def test_telefone_curto_nao_identifica(toolset) -> None:
     session, tools = toolset
 
-    out = tools["identificar_cliente"].invoke({"telefone": "98432"})
+    out = tools["identify_customer"].invoke({"phone": "98432"})
 
     assert out["identificado"] is False
     assert out["motivo"] == "telefone incompleto"
@@ -135,9 +135,9 @@ def test_telefone_curto_nao_identifica(toolset) -> None:
 
 def test_telefone_desconhecido_limpa_a_sessao(toolset) -> None:
     session, tools = toolset
-    tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
+    tools["identify_customer"].invoke({"phone": "(67) 98432-1098"})
 
-    out = tools["identificar_cliente"].invoke({"telefone": "(11) 90000-0000"})
+    out = tools["identify_customer"].invoke({"phone": "(11) 90000-0000"})
 
     assert out["identificado"] is False
     assert session.customer_id is None
@@ -146,35 +146,35 @@ def test_telefone_desconhecido_limpa_a_sessao(toolset) -> None:
 def test_pedido_exige_cliente_identificado(toolset) -> None:
     _, tools = toolset
 
-    out = tools["consultar_pedido"].invoke({})
+    out = tools["lookup_order"].invoke({})
 
     assert out["erro"] == "cliente_nao_identificado"
 
 
 def test_pedido_de_outro_cliente_nao_e_revelado(toolset) -> None:
     _, tools = toolset
-    tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})  # cliente 3
+    tools["identify_customer"].invoke({"phone": "(67) 98432-1098"})  # cliente 3
 
-    out = tools["consultar_pedido"].invoke({"order_id": 6})  # pedido 6 e do cliente 9
+    out = tools["lookup_order"].invoke({"order_id": 6})  # pedido 6 e do cliente 9
 
     assert out["encontrado"] is False
 
 
 def test_pedido_inexistente_recebe_a_mesma_resposta_de_pedido_alheio(toolset) -> None:
     _, tools = toolset
-    tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
+    tools["identify_customer"].invoke({"phone": "(67) 98432-1098"})
 
-    alheio = tools["consultar_pedido"].invoke({"order_id": 6})
-    inexistente = tools["consultar_pedido"].invoke({"order_id": 999})
+    alheio = tools["lookup_order"].invoke({"order_id": 6})
+    inexistente = tools["lookup_order"].invoke({"order_id": 999})
 
     assert alheio == inexistente, "nao confirmar a existencia de pedido de outro cliente"
 
 
 def test_lista_pedidos_do_cliente(toolset) -> None:
     _, tools = toolset
-    tools["identificar_cliente"].invoke({"telefone": "(67) 98432-1098"})
+    tools["identify_customer"].invoke({"phone": "(67) 98432-1098"})
 
-    out = tools["consultar_pedido"].invoke({})
+    out = tools["lookup_order"].invoke({})
     orders = {item["pedido"]: item for item in out["pedidos"]}
 
     assert set(orders) == {1, 19}
@@ -185,9 +185,9 @@ def test_lista_pedidos_do_cliente(toolset) -> None:
 
 def test_total_divergente_e_sinalizado_nao_corrigido(toolset) -> None:
     _, tools = toolset
-    tools["identificar_cliente"].invoke({"telefone": "(67) 98321-6543"})  # cliente 7
+    tools["identify_customer"].invoke({"phone": "(67) 98321-6543"})  # cliente 7
 
-    out = tools["consultar_pedido"].invoke({"order_id": 20})
+    out = tools["lookup_order"].invoke({"order_id": 20})
     order = out["pedido"]
 
     assert order["total"] == "R$ 1.400,00"
@@ -201,7 +201,7 @@ def test_total_divergente_e_sinalizado_nao_corrigido(toolset) -> None:
 def test_politica_de_devolucao_com_proveniencia(toolset) -> None:
     _, tools = toolset
 
-    out = tools["consultar_politicas"].invoke({"pergunta": "me arrependi, posso devolver?"})
+    out = tools["lookup_policy"].invoke({"question": "me arrependi, posso devolver?"})
     topo = out["trechos"][0]
 
     assert out["encontrado"] is True
@@ -213,7 +213,7 @@ def test_politica_de_devolucao_com_proveniencia(toolset) -> None:
 def test_politica_fora_do_manual_nao_inventa(toolset) -> None:
     _, tools = toolset
 
-    out = tools["consultar_politicas"].invoke({"pergunta": "receita de bolo de cenoura"})
+    out = tools["lookup_policy"].invoke({"question": "receita de bolo de cenoura"})
 
     assert out["encontrado"] is False
     assert "instrucao" in out
@@ -225,7 +225,7 @@ def test_politica_fora_do_manual_nao_inventa(toolset) -> None:
 def test_pix_aplica_cinco_por_cento(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 1000, "forma": "pix"})
+    out = tools["simulate_payment"].invoke({"amount": 1000, "method": "pix"})
 
     assert out["valor_final"] == "R$ 950,00"
 
@@ -233,8 +233,8 @@ def test_pix_aplica_cinco_por_cento(toolset) -> None:
 def test_pix_nao_acumula_com_preco_promocional(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke(
-        {"valor": 359, "forma": "pix", "preco_ja_promocional": True}
+    out = tools["simulate_payment"].invoke(
+        {"amount": 359, "method": "pix", "promo_price": True}
     )
 
     assert out["desconto_percent"] == 0
@@ -244,7 +244,7 @@ def test_pix_nao_acumula_com_preco_promocional(toolset) -> None:
 def test_pix_acima_de_dois_mil_avisa_sobre_combinacao(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 2199, "forma": "pix"})
+    out = tools["simulate_payment"].invoke({"amount": 2199, "method": "pix"})
 
     assert any("2.000" in nota for nota in out["observacoes"])
 
@@ -252,7 +252,7 @@ def test_pix_acima_de_dois_mil_avisa_sobre_combinacao(toolset) -> None:
 def test_forma_de_pagamento_desconhecida_e_recusada(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 500, "forma": "cheque"})
+    out = tools["simulate_payment"].invoke({"amount": 500, "method": "cheque"})
 
     assert out["permitido"] is False
     assert "cheque" not in out["formas_aceitas"]
@@ -261,13 +261,13 @@ def test_forma_de_pagamento_desconhecida_e_recusada(toolset) -> None:
 def test_valor_invalido_e_recusado(toolset) -> None:
     _, tools = toolset
 
-    assert tools["simular_pagamento"].invoke({"valor": 0, "forma": "pix"})["permitido"] is False
+    assert tools["simulate_payment"].invoke({"amount": 0, "method": "pix"})["permitido"] is False
 
 
 def test_doze_vezes_bloqueado_abaixo_da_parcela_minima(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 849, "forma": "credito", "parcelas": 12})
+    out = tools["simulate_payment"].invoke({"amount": 849, "method": "credito", "installments": 12})
 
     assert out["permitido"] is False
     assert "70,75" in out["motivo"]
@@ -276,7 +276,9 @@ def test_doze_vezes_bloqueado_abaixo_da_parcela_minima(toolset) -> None:
 def test_doze_vezes_permitido_no_limite(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 1200, "forma": "credito", "parcelas": 12})
+    out = tools["simulate_payment"].invoke(
+        {"amount": 1200, "method": "credito", "installments": 12}
+    )
 
     assert out["permitido"] is True
     assert out["valor_parcela"] == "R$ 100,00"
@@ -285,7 +287,9 @@ def test_doze_vezes_permitido_no_limite(toolset) -> None:
 def test_parcelas_acima_de_doze_sao_recusadas(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 5000, "forma": "credito", "parcelas": 13})
+    out = tools["simulate_payment"].invoke(
+        {"amount": 5000, "method": "credito", "installments": 13}
+    )
 
     assert out["permitido"] is False
 
@@ -293,11 +297,11 @@ def test_parcelas_acima_de_doze_sao_recusadas(toolset) -> None:
 def test_seis_vezes_exige_parcela_de_oitenta(toolset) -> None:
     _, tools = toolset
 
-    bloqueado = tools["simular_pagamento"].invoke(
-        {"valor": 400, "forma": "credito", "parcelas": 6}
+    bloqueado = tools["simulate_payment"].invoke(
+        {"amount": 400, "method": "credito", "installments": 6}
     )
-    liberado = tools["simular_pagamento"].invoke(
-        {"valor": 480, "forma": "credito", "parcelas": 6}
+    liberado = tools["simulate_payment"].invoke(
+        {"amount": 480, "method": "credito", "installments": 6}
     )
 
     assert bloqueado["permitido"] is False
@@ -307,7 +311,7 @@ def test_seis_vezes_exige_parcela_de_oitenta(toolset) -> None:
 def test_tres_vezes_exige_compra_minima_de_cinquenta(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 49.9, "forma": "credito", "parcelas": 3})
+    out = tools["simulate_payment"].invoke({"amount": 49.9, "method": "credito", "installments": 3})
 
     assert out["permitido"] is False
 
@@ -315,7 +319,7 @@ def test_tres_vezes_exige_compra_minima_de_cinquenta(toolset) -> None:
 def test_debito_nao_parcela(toolset) -> None:
     _, tools = toolset
 
-    out = tools["simular_pagamento"].invoke({"valor": 500, "forma": "debito", "parcelas": 3})
+    out = tools["simulate_payment"].invoke({"amount": 500, "method": "debito", "installments": 3})
 
     assert out["permitido"] is False
 

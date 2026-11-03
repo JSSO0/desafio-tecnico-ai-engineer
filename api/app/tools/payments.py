@@ -17,11 +17,11 @@ def _money(value: Decimal) -> Decimal:
 
 def make_payment_tools():
     @tool
-    def simular_pagamento(
-        valor: float,
-        forma: str,
-        parcelas: int = 1,
-        preco_ja_promocional: bool = False,
+    def simulate_payment(
+        amount: float,
+        method: str,
+        installments: int = 1,
+        promo_price: bool = False,
     ) -> dict[str, object]:
         """Aplica as regras de pagamento da loja sobre um valor.
 
@@ -35,15 +35,15 @@ def make_payment_tools():
             preco_ja_promocional: True quando o valor ja tem desconto de promocao ativa
                 (o desconto de PIX nao se acumula sobre preco promocional).
         """
-        forma = (forma or "").strip().lower()
-        if forma not in {"pix", "debito", "credito", "boleto"}:
+        method = (method or "").strip().lower()
+        if method not in {"pix", "debito", "credito", "boleto"}:
             return {
                 "permitido": False,
                 "motivo": "forma de pagamento desconhecida",
                 "formas_aceitas": ["pix", "debito", "credito", "boleto"],
             }
 
-        base = _money(Decimal(str(valor)))
+        base = _money(Decimal(str(amount)))
         if base <= 0:
             return {"permitido": False, "motivo": "valor invalido"}
 
@@ -51,8 +51,8 @@ def make_payment_tools():
         discount = Decimal("0")
         final_amount = base
 
-        if forma == "pix":
-            if preco_ja_promocional:
+        if method == "pix":
+            if promo_price:
                 notes.append(
                     "O desconto de PIX nao se aplica sobre preco ja promocional (politica §6.2)."
                 )
@@ -73,31 +73,31 @@ def make_payment_tools():
                 "observacoes": notes,
             }
 
-        if forma in {"debito", "boleto"}:
-            if int(parcelas) > 1:
+        if method in {"debito", "boleto"}:
+            if int(installments) > 1:
                 return {
                     "permitido": False,
-                    "motivo": f"{forma} e a vista, em parcela unica (politica §3).",
+                    "motivo": f"{method} e a vista, em parcela unica (politica §3).",
                 }
-            if forma == "boleto":
+            if method == "boleto":
                 notes.append("Compensacao em ate 3 dias uteis (politica §3).")
             return {
                 "permitido": True,
-                "forma": forma,
+                "forma": method,
                 "valor_base": brl(base),
                 "valor_final": brl(base),
                 "observacoes": notes,
             }
 
         # credito
-        parcelas = int(parcelas)
-        if not 1 <= parcelas <= 12:
+        installments = int(installments)
+        if not 1 <= installments <= 12:
             return {
                 "permitido": False,
                 "motivo": "O cartao de credito parcela de 1 a 12 vezes (politica §3).",
             }
 
-        if parcelas <= 3:
+        if installments <= 3:
             minimum = PARCELA_MINIMA[0][1]
             if base < FORMA_MINIMA_3X:
                 return {
@@ -107,17 +107,17 @@ def make_payment_tools():
                         " (politica §3.1)."
                     ),
                 }
-        elif parcelas <= 6:
+        elif installments <= 6:
             minimum = PARCELA_MINIMA[1][1]
         else:
             minimum = PARCELA_MINIMA[2][1]
 
-        per_installment = _money(base / parcelas)
+        per_installment = _money(base / installments)
         if per_installment < minimum:
             return {
                 "permitido": False,
                 "motivo": (
-                    f"Em {parcelas}x cada parcela ficaria em {brl(per_installment)},"
+                    f"Em {installments}x cada parcela ficaria em {brl(per_installment)},"
                     f" abaixo do minimo de {brl(minimum)} para essa faixa."
                     " Parcelas menores sao possiveis."
                 ),
@@ -130,10 +130,10 @@ def make_payment_tools():
             "forma": "credito",
             "valor_base": brl(base),
             "valor_final": brl(base),
-            "parcelas": parcelas,
+            "parcelas": installments,
             "valor_parcela": brl(per_installment),
             "parcela_minima_aplicada": brl(minimum),
             "observacoes": notes,
         }
 
-    return [simular_pagamento]
+    return [simulate_payment]

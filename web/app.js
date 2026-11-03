@@ -764,12 +764,12 @@
   }
 
   const TOOL_LABELS = {
-    buscar_produtos: "Catálogo",
-    detalhe_produto: "Detalhe",
-    identificar_cliente: "Identificação",
-    consultar_pedido: "Pedido",
-    consultar_politicas: "Políticas",
-    simular_pagamento: "Pagamento"
+    search_products: "Catálogo",
+    product_detail: "Detalhe",
+    identify_customer: "Identificação",
+    lookup_order: "Pedido",
+    lookup_policy: "Políticas",
+    simulate_payment: "Pagamento"
   };
 
   const GUARD_LABELS = {
@@ -926,7 +926,7 @@
         text: "Temos 12 violões até R$ 1000. Algumas opções:",
         at: null,
         status: "done",
-        tools: [{ name: "buscar_produtos", status: "end", args: { preco_max: 1000, categoria: "Violões" } }],
+        tools: [{ name: "search_products", status: "end", args: { max_price: 1000, category: "Violões" } }],
         cards: [
           {
             id: "demo-c1",
@@ -959,7 +959,7 @@
         text: "Pode sim. Pela política de trocas e devoluções, compras online têm **7 dias corridos** após o recebimento para desistir, sem precisar justificar.",
         at: null,
         status: "done",
-        tools: [{ name: "consultar_politicas", status: "end", args: { pergunta: "arrependimento compra online" } }],
+        tools: [{ name: "lookup_policy", status: "end", args: { question: "arrependimento compra online" } }],
         cards: [
           {
             id: "demo-c2",
@@ -985,8 +985,8 @@
   }
 
   const DEMO_TOOLS = [
-    { name: "consultar_politicas", status: "end", at: null },
-    { name: "buscar_produtos", status: "end", at: null }
+    { name: "lookup_policy", status: "end", at: null },
+    { name: "search_products", status: "end", at: null }
   ];
 
   function Dialog(props) {

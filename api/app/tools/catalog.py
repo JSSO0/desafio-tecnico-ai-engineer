@@ -70,13 +70,13 @@ def make_catalog_tools(conn: sqlite3.Connection):
     # Excecao consciente ao limite de parametros: a assinatura e o schema que o modelo le.
     # Aninhar em um objeto trocaria a legibilidade do modelo por estetica de assinatura.
     @tool
-    def buscar_produtos(  # noqa: PLR0913
-        termo: str | None = None,
-        categoria: str | None = None,
-        preco_min: float | None = None,
-        preco_max: float | None = None,
-        somente_disponiveis: bool = True,
-        limite: int = 8,
+    def search_products(  # noqa: PLR0913
+        query: str | None = None,
+        category: str | None = None,
+        min_price: float | None = None,
+        max_price: float | None = None,
+        only_available: bool = True,
+        limit: int = 8,
     ) -> dict[str, object]:
         """Consulta o catalogo de instrumentos com filtros.
 
@@ -95,14 +95,14 @@ def make_catalog_tools(conn: sqlite3.Connection):
             total_encontrado, itens e uma observacao quando nada casa com o filtro.
         """
         where, params = _where(
-            CatalogFilter(termo, categoria, preco_min, preco_max, somente_disponiveis)
+            CatalogFilter(query, category, min_price, max_price, only_available)
         )
-        limite = max(1, min(int(limite), 20))
+        limit = max(1, min(int(limit), 20))
 
         total = conn.execute(f"SELECT COUNT(*) FROM v_products{where}", params).fetchone()[0]
         rows = conn.execute(
             f"SELECT {_COLUMNS} FROM v_products{where} ORDER BY price_final LIMIT ?",
-            [*params, limite],
+            [*params, limit],
         ).fetchall()
 
         return {
@@ -118,7 +118,7 @@ def make_catalog_tools(conn: sqlite3.Connection):
         }
 
     @tool
-    def detalhe_produto(nome_ou_id: str) -> dict[str, object]:
+    def product_detail(name_or_id: str) -> dict[str, object]:
         """Detalhe de um produto: preco, estoque, especificacoes e promocao ativa.
 
         Use quando o cliente cita um modelo especifico ("quanto custa o Takamine GD20?").
@@ -126,7 +126,7 @@ def make_catalog_tools(conn: sqlite3.Connection):
         Args:
             nome_ou_id: nome (parcial serve) ou id numerico do produto.
         """
-        raw = (nome_ou_id or "").strip()
+        raw = (name_or_id or "").strip()
         row = None
 
         if raw.isdigit():
@@ -165,4 +165,4 @@ def make_catalog_tools(conn: sqlite3.Connection):
             card["especificacoes"] = json.loads(row["specs_json"])
         return card
 
-    return [buscar_produtos, detalhe_produto]
+    return [search_products, product_detail]

@@ -20,10 +20,10 @@ class FakeRunner:
 
     async def stream(self, ctx, history, message, acc, conn):
         self.historico = list(history)
-        acc.tool_calls.append({"name": "buscar_produtos", "args": {"termo": "violao"}})
+        acc.tool_calls.append({"name": "search_products", "args": {"termo": "violao"}})
         yield {
             "event": "tool_call",
-            "data": {"name": "buscar_produtos", "args": {}, "status": "start"},
+            "data": {"name": "search_products", "args": {}, "status": "start"},
         }
         yield {"event": "card", "data": {"tipo": "produto", "dados": {"nome": "Yamaha C40"}}}
         yield {"event": "token", "data": {"delta": self.text[:10]}}
