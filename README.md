@@ -64,7 +64,7 @@ nginx encaminha `/v1`, `/healthz`, `/readyz` e `/docs` para a API. Campo vazio v
 | "API offline" no painel | a API não subiu: `docker compose logs api` |
 | `401 expired_token` | sessão de 30 min venceu: **Nova sessão** |
 | `429 rate_limited` | passou de 10 mensagens no minuto; espere o `Retry-After` |
-| `429 too_many_sessions` | 60 sessões/hora por origem; o `eval.py` consome 14 por execução |
+| `429 too_many_sessions` | 120 sessões/hora por origem; o `eval.py` consome 14 por execução |
 | `400 message_too_long` | mensagem acima de 800 caracteres |
 | Resposta sem preço, pedindo confirmação | o gate atuou: `logs/audit-AAAA-MM-DD.jsonl`, campo `guard` |
 
