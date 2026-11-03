@@ -47,3 +47,25 @@ seria mais curto e menos legível.
 Os testes cobrem comportamento; não cobrem forma. Lista longa de parâmetros, contrato vazio no
 Swagger e nomenclatura inconsistente passam por 151 testes verdes sem reclamar. Foi a leitura humana
 que apontou — e por isso duas dessas viraram gate (lint `PLR0913`) em vez de comentário.
+## Rodada 2 — a revisão cobrou abrangência
+
+O primeiro passe tratou um call site. A revisão apontou que o problema era do código inteiro, e com
+razão: a varredura seguinte encontrou **10 funções com 4+ parâmetros** e **251 identificadores** em
+português espalhados por 19 arquivos.
+
+O que mudou:
+
+- **parâmetros:** `CatalogFilter`, `AuditEntry`, `append_user_message`/`append_assistant_message` e
+  `add_usage(session_id, TurnOutcome)`; `max-args` caiu de 6 para **5**
+- **exceção declarada:** `buscar_produtos` mantém 6, com `# noqa: PLR0913` e o motivo escrito — a
+  assinatura é o schema do modelo
+- **nomes:** 251 identificadores, incluindo três `parametrize` do pytest que quebram em silêncio
+  porque o nome do parâmetro vive dentro de string
+- **o que ficou em português, e por quê:** nomes de ferramenta, parâmetros que o modelo preenche e
+  chaves de saída (`secao`, `titulo`) — contrato com o LLM e com `web/app.js`
+
+Verificação: 159 testes, `ruff` limpo, evals 14/14.
+
+**Lição de método:** a primeira passada foi aplicada onde eu estava mexendo, não onde o problema
+existia. Revisão que aponta um caso costuma apontar uma classe — vale varrer a classe antes de
+fechar o item.
