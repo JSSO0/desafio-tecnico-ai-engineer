@@ -7,6 +7,15 @@ The agent talks to customers in Portuguese, in the store's own voice. It answers
 data** (catalogue, orders) through deterministic tools and from **internal policy** through
 section-level retrieval, and it declines what falls outside the store's scope.
 
+## How this README maps to the brief
+
+| The brief asks for | Where |
+|---|---|
+| Instructions to run: environment, model provider, commands | [Running it](#running-it) |
+| Justification of technical decisions: framework, LLM, retrieval, prompt strategy | [Technical decisions](#technical-decisions) |
+| Known limitations and what I would do with more time | [Known limitations](#known-limitations-and-what-i-would-do-with-more-time) |
+| Use of code assistants: which, and how | [Use of code assistants](#use-of-code-assistants) |
+
 ---
 
 ## Stack
@@ -25,19 +34,71 @@ section-level retrieval, and it declines what falls outside the store's scope.
 
 ## Running it
 
+### Requirements
+
+- **Docker with Compose** — that is the only requirement to run everything.
+- Python 3.12 and Node are **not** needed on the host: the API, the database build and the interface
+  all run inside containers. Python 3.12 is only needed if you run the test suite outside Docker.
+
+### Environment setup
+
 ```bash
-cp .env.example .env      # fill in the key of the provider you chose
+cp .env.example .env      # then fill in the key of the provider you chose
 docker compose up --build
 ```
 
+The **only required variable is the provider API key**. Everything else has a working default:
+
+| Variable | Default | What it does |
+|---|---|---|
+| `LLM_PROVIDER` | `deepseek` | `openai`, `anthropic` or `deepseek` |
+| `LLM_MODEL` | `deepseek-chat` | any tool-calling model from that provider |
+| `LLM_TEMPERATURE` | `0.2` | low on purpose: factual support, not creative writing |
+| `DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | — | fill only the one for the active provider |
+| `BUDGET_TOKENS` | `60000` | per-session token budget, enforced server-side |
+| `MAX_MESSAGES_PER_MINUTE` | `10` | per-session rate limit |
+| `MAX_SESSIONS_PER_HOUR` | `120` | per-origin session cap (anti denial-of-wallet) |
+| `SESSION_TTL_MINUTES` | `30` | sliding session lifetime |
+| `CORS_ORIGINS` | dev origins | comma-separated; empty turns CORS off |
+
+**The provider key never leaves the server.** It is read from the environment by the API, is absent
+from the UI bundle, from the images and from the logs (verified by grep over the whole history), and
+the browser only ever holds an opaque session token.
+
+### Endpoints once it is up
+
 - **Interface:** <http://localhost:8080>
-- API: <http://localhost:8000>
-- Swagger: <http://localhost:8000/docs>
-- Health: <http://localhost:8000/healthz> · <http://localhost:8000/readyz>
-- Active configuration: <http://localhost:8000/v1/meta>
+- API: <http://localhost:8000> · Swagger: <http://localhost:8000/docs>
+- Health: `/healthz` · `/readyz` · Active configuration: `/v1/meta`
 
 To work on the interface without Docker: `cd web && python serve.py` (serves on
 <http://localhost:5173>). Details in [`web/README.md`](web/README.md).
+
+### Commands
+
+```bash
+docker compose up --build                 # start API + interface
+docker compose ps                         # service status
+docker compose logs -f api                # follow the API
+docker compose down                       # stop, keeping data
+docker compose down -v                    # wipe data: rebuilds the base from CSVs on next start
+
+docker compose exec api pytest            # 162 tests, no network, no key
+docker compose exec api ruff check .      # lint and import order
+docker compose exec api python scripts/eval.py     # 15 cases against the real model
+docker compose exec api python scripts/build_db.py # rebuild SQLite from the CSVs
+docker compose exec api python -m app.cli          # talk to the agent without the API
+python scripts/conversas.py               # regenerate docs/exemplos/ (runs on the host)
+```
+
+### Switching provider
+
+One line in `.env`, no code change:
+
+```env
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4.1-mini
+```
 
 ### Trying the interface
 
@@ -51,11 +112,8 @@ Open <http://localhost:8080> and click **Iniciar atendimento**. Three messages c
 
 The **Sessão** panel shows token usage, remaining budget and the state of `/healthz`, `/readyz` and
 `/v1/meta`. The **API URL** field defaults to `http://localhost:8000` and is saved in `localStorage`.
-
 To go through the bundled nginx — same origin, no CORS, and the path that also works from another
-machine — set the field to the **page origin** (`http://localhost:8080`) and click **Conectar**. The
-nginx proxies `/v1`, `/healthz`, `/readyz` and `/docs` to the API. An empty field falls back to the
-default.
+machine — set the field to the page origin (`http://localhost:8080`) and click **Conectar**.
 
 ### Troubleshooting
 
@@ -68,24 +126,8 @@ default.
 | `400 message_too_long` | message above 800 characters |
 | Answer without a price, asking to confirm | the gate acted: see `logs/audit-YYYY-MM-DD.jsonl`, field `guard` |
 
-```bash
-docker compose ps                        # service status
-docker compose logs -f api               # what the API is doing
-docker compose down                      # stop, keeping data
-docker compose down -v                   # wipe everything: rebuilds the base from CSVs on next start
-```
-
 The audit trail lives in `logs/audit-YYYY-MM-DD.jsonl`, one record per turn, with phone and e-mail
 masked.
-
-### Switching provider
-
-One line in `.env`, no code change:
-
-```env
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4.1-mini
-```
 
 ---
 
@@ -98,17 +140,129 @@ In one sentence: client → FastAPI (session, guardrails, ReAct agent, RAG, limi
 operational SQLite + runtime SQLite + JSONL trail, with an external LLM provider chosen by
 configuration.
 
+---
+
 ## Technical decisions
 
-*(full rationale in `docs/adr/` and `memory-bank/01-arquitetura-e-decisoes.md`)*
+Full rationale, alternatives and rollback in [`docs/adr/`](docs/adr/). This section is the short
+version of the reasoning.
 
-- **Hybrid: tools + sections.** Operational data through 6 typed tools over SQLite; policy through
-  retrieval over 25 blocks of the manual, with citation. No RAG over CSV.
-- **Lexical retrieval (FTS5/BM25)** with a 5-character prefix and coverage re-ranking by IDF: ~280
-  policy tokens per turn against 2,930 for the whole manual.
-- **Opaque session token** instead of JWT (revocation and per-session budget) — ADR 0002.
-- **Guardrail in code, not in the prompt** — the price gate runs over the output.
-- **Naming:** code, tool names and tool schema in English; payload keys in Portuguese (ADR 0005).
+### Agent framework — LangChain v1 (`create_agent`)
+
+**Chosen** because it supplies, without extra code: the ReAct loop, tool schemas generated from Python
+type hints, streaming of token and tool-call chunks, and middleware hooks for cross-cutting concerns.
+Rebuilding those means writing and testing several hundred lines of parsing, streaming and message
+plumbing — infrastructure, not product.
+
+**Rejected:** a hand-rolled loop (full control, but the control we would gain is over code we would
+have to maintain); raw provider SDKs (same, minus the free tool schema); LangGraph directly
+(`create_agent` already *is* a LangGraph graph; dropping one level buys nothing for a single-agent
+loop).
+
+**Cost accepted:** coupling to a framework that evolves fast. Mitigated by ADR 0001 — the test suite
+covers our boundaries (tools, turn extraction, price gate, HTTP contract) and deliberately does not
+test the framework, so an upgrade only breaks us if our own contract changes.
+
+### Model and provider
+
+**Requirement:** three providers, switchable by configuration, key never reaching the client.
+`init_chat_model(model, model_provider)` resolves the integration lazily and gives one uniform
+interface with tool calling.
+
+**Default: DeepSeek (`deepseek-chat`)** — cheapest per token of the three and it passed the tool-calling
+suite (15/15) without a single prompt change. OpenAI and Anthropic are one `.env` line away and were
+exercised during development.
+
+**Trade-off:** tool-calling reliability varies by model, and a cheap model is where it shows first.
+That is why the acceptance test runs the **real model** through the real API — a mocked agent would
+hide exactly this difference.
+
+**What would change the choice:** an on-premise requirement (Ollama is one provider key away) or a
+material drop in eval pass rate.
+
+### Retrieval architecture — two paths, on purpose
+
+Structured and textual knowledge fail differently, so they are queried differently.
+
+| Knowledge | Path | Why |
+|---|---|---|
+| Catalogue, orders, promotions | 6 typed tools over SQLite, fixed field projection | exact values, numeric filters, joins and aggregation |
+| Internal policy (25 blocks) | FTS5/BM25, 1–3 sections per turn, cited | free-text questions, needs attribution to a section |
+
+**Why not RAG over the CSVs.** Three reasons, in order of weight: (a) numeric predicates ("up to
+R$1000"), joins and aggregation are retrieval-hostile — a chunk cannot filter; (b) a chunk dump can
+expose the whole customer table, which turns prompt injection into a **disclosure** rather than a
+wrong answer; (c) the manual forbids quoting a price without querying the system, and a chunk is not a
+query.
+
+**Why not embeddings for policy.** 25 blocks do not justify an ANN index, an embedding provider and an
+ingestion pipeline. The real weakness of lexical search is synonymy, and it is documented as such —
+hybrid reranking is the next step (ADR 0003), not a silent gap.
+
+**What made lexical retrieval actually work** — three fixes, each found by testing, not by design:
+
+1. **Query sanitisation.** `MATCH` has its own syntax (`"`, `*`, `NEAR`, `-`); free text breaks the
+   search and, worse, lets a client inject operators. Every term is normalised and quoted.
+2. **A 5-character prefix as a cheap Portuguese stemmer.** At 6, `devolver` did not match
+   `devolução` — the stem diverges on the sixth letter.
+3. **IDF + title-boost re-ranking.** Plain BM25 ranked "compra" above "devolução" and "tempo" (rare in
+   the corpus) above "garantia"; weighting by inverse document frequency and giving the manual's own
+   headings a boost fixed the order.
+
+**Measured cost:** ~280 policy tokens per turn, against 2,930 for the whole manual (−90%).
+
+### Prompt strategy
+
+The prompt is a **versioned file** (`api/app/agent/prompts/v1.md`). Its short hash is the
+`prompt_version` written to every audit line and exposed by `/v1/meta`, so each answer is attributable
+to a prompt revision.
+
+**Structure, in this order:** role → tone (from the manual's §7.1: informal but professional) → the one
+non-negotiable rule (never state price, stock or deadline without a tool result) → the tool list with
+when-to-use → situation-by-situation guidance (order, promotion, out of stock, out of scope, complaint)
+→ output format (WhatsApp: short, no tables, single-asterisk emphasis) → closing.
+
+**What the prompt deliberately does not contain:** data, prices or policy text. Context that is always
+present stops being context and becomes noise — and stale data. Retrieval and tools are the only path
+to facts.
+
+**Guardrails are not instructions.** Input triage and the price gate are code, not text: asking a model
+to "never invent prices" is a wish, while comparing every `R$` in the answer against the tool output of
+the same turn is a control.
+
+**Three changes were driven by failure, not taste:**
+
+- factual store fields (address, phone) had to be named as "must query" — the model was deferring;
+- WhatsApp emphasis (`*one asterisk*`) replaced markdown, which rendered literally;
+- the in-store return rule came from an independent test session that caught the agent granting an
+  online-only right.
+
+**History policy:** the model receives the conversation but not tool payloads. That took turn 3 from
+13.4k to 2.7k input tokens (−80%). The cost is that it may re-query instead of remembering — cheap, and
+the data is always current.
+
+### Data access and authorization
+
+Customer identity lives in the server-side `SessionContext`; tools read from it, never from the
+argument the model produced. `lookup_order` takes no `customer_id`: a request for another customer's
+order returns "not found", without confirming existence. Every tool opens SQLite read-only. The
+consequence is deliberate — a successful prompt injection costs a wrong answer, never a transaction or
+a data leak.
+
+### Session and credentials
+
+Opaque 256-bit token, stored only as a SHA-256 hash, 30-minute sliding TTL, revocable per session
+(ADR 0002). JWT was rejected: revocation and a per-session budget need server state anyway. The
+consequence reaches the client — `EventSource` cannot send headers, so streaming uses `fetch` +
+`ReadableStream`.
+
+### Cost and limits
+
+60k tokens per session, 10 messages/minute and 120 sessions/hour per origin, all enforced in the server
+and visible in `/usage`, in the `usage` SSE event and in `X-RateLimit-*` headers. "Be brief" in the
+prompt was rejected as a control: it limits neither cost nor abuse.
+
+---
 
 ## Guardrails, limits and cost
 
@@ -226,20 +380,22 @@ Starting point for whoever builds the UI. The full contract is in `/docs` (OpenA
 
 ## Use of code assistants
 
-Main tool: **opencode** in agent mode, with purpose-built engineering skills (planning, security, AI,
-design) and **spec-kit** for spec-driven development. The model was DeepSeek, also used as the agent's
-provider.
+**Main tool: opencode in agent mode**, with purpose-built engineering skills (planning, security, AI,
+design) and **spec-kit** for spec-driven development. The model behind it was DeepSeek — the same
+provider used by the agent. Supporting tools: Playwright (browser verification), pytest and ruff.
 
 **How it was used** — not as a loose code generator, but in cycles with acceptance criteria:
 
 1. **Read before writing.** The agent read the 6 CSVs and the PDF before proposing anything; the data
    analysis (volume, integrity, divergences) became a documented assumption and an eval case.
 2. **Plan with explicit trade-offs.** Every relevant decision had options, cost and a rollback path
-   (ADRs 0001–0005). Two choices from the original plan were reverted by evidence: a regex scope
-   guard (became the model's judgement) and Mermaid's `C4Context` type (the layout crossed labels).
+   (ADRs 0001–0005). Two choices from the original plan were reverted by evidence: a regex scope guard
+   (became the model's judgement) and Mermaid's `C4Context` type (the layout crossed labels).
 3. **Real verification, not "it should work".** Every phase ended with `pytest`, `ruff`,
    `docker compose up --build` and, at the end, `scripts/eval.py` against the API with the real model.
 4. **Test before fixing.** Every bug below became a regression test.
+5. **Review as a gate.** Each phase stopped for human approval before the next one started; the review
+   round at the end produced eight accepted improvements and two rejected ones, with reasons.
 
 **What the agent got wrong and how it was caught** (transparency matters more than a list of wins):
 
@@ -253,6 +409,7 @@ provider.
 | The address answered from memory instead of querying the manual | a scenario from the brief itself |
 | Encoding corrupted by a Windows shell command | byte check before committing |
 | The agent granted an in-store return window that only applies online, and invented requirements | an independent test session, run against the UI |
+| It applied a consistency review to one call site instead of the whole codebase | the reviewer pointed it out; the fix became a lint rule |
 
 **Two agent sessions ran in parallel by mistake** and collided in the same working tree. The history
 came out interleaved (15 commits in 2 minutes, no duplicated files). The fix was to serialise, adopt
