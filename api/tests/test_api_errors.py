@@ -21,25 +21,25 @@ def _client(exc: Exception) -> TestClient:
 
 
 def test_erro_inesperado_vira_json_com_request_id() -> None:
-    resposta = _client(RuntimeError("boom")).get("/estoura")
-    corpo = resposta.json()
+    response = _client(RuntimeError("boom")).get("/estoura")
+    corpo = response.json()
 
-    assert resposta.status_code == 500
+    assert response.status_code == 500
     assert corpo["code"] == "internal_error"
     assert corpo["request_id"]
-    assert "boom" not in resposta.text
+    assert "boom" not in response.text
 
 
 def test_erro_de_dominio_tem_codigo_proprio_e_nao_vaza_detalhe() -> None:
-    resposta = _client(DataSourceError("caminho interno X")).get("/estoura")
-    corpo = resposta.json()
+    response = _client(DataSourceError("caminho interno X")).get("/estoura")
+    corpo = response.json()
 
-    assert resposta.status_code == 500
+    assert response.status_code == 500
     assert corpo["code"] == "domain_error"
-    assert "caminho interno X" not in resposta.text
+    assert "caminho interno X" not in response.text
 
 
 def test_resposta_de_erro_segue_o_mesmo_formato() -> None:
-    resposta = _client(RuntimeError("x")).get("/estoura")
+    response = _client(RuntimeError("x")).get("/estoura")
 
-    assert set(resposta.json()) == {"code", "message", "request_id"}
+    assert set(response.json()) == {"code", "message", "request_id"}

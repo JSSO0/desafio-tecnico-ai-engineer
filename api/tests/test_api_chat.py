@@ -13,8 +13,8 @@ from app.runtime.store import RuntimeStore
 class FakeRunner:
     """Agente roteirizado: exercita a API sem chamar provedor nenhum."""
 
-    def __init__(self, texto: str = "O violao sai por R$ 599,90.", guard: str | None = None):
-        self.texto = texto
+    def __init__(self, text: str = "O violao sai por R$ 599,90.", guard: str | None = None):
+        self.text = text
         self.guard = guard
         self.historico: list[Any] = []
 
@@ -26,28 +26,28 @@ class FakeRunner:
             "data": {"name": "buscar_produtos", "args": {}, "status": "start"},
         }
         yield {"event": "card", "data": {"tipo": "produto", "dados": {"nome": "Yamaha C40"}}}
-        yield {"event": "token", "data": {"delta": self.texto[:10]}}
-        yield {"event": "token", "data": {"delta": self.texto[10:]}}
+        yield {"event": "token", "data": {"delta": self.text[:10]}}
+        yield {"event": "token", "data": {"delta": self.text[10:]}}
         acc.tokens_in = 1200
         acc.tokens_out = 80
-        acc.raw_answer = self.texto
-        acc.answer = self.texto
+        acc.raw_answer = self.text
+        acc.answer = self.text
         acc.guard = self.guard
         if self.guard:
             yield {
                 "event": "guard",
-                "data": {"tipo": self.guard, "acao": "substituir_resposta", "texto": self.texto},
+                "data": {"tipo": self.guard, "acao": "substituir_resposta", "texto": self.text},
             }
 
 
-def _eventos(resposta) -> list[tuple[str, dict]]:
+def _eventos(response) -> list[tuple[str, dict]]:
     eventos = []
-    for bloco in resposta.text.strip().split("\n\n"):
+    for bloco in response.text.strip().split("\n\n"):
         campos = {}
-        for linha in bloco.splitlines():
-            if ": " in linha:
-                chave, valor = linha.split(": ", 1)
-                campos[chave] = valor
+        for line in bloco.splitlines():
+            if ": " in line:
+                key, value = line.split(": ", 1)
+                campos[key] = value
         if "event" in campos:
             eventos.append((campos["event"], json.loads(campos["data"])))
     return eventos
@@ -67,24 +67,24 @@ def _session(client: TestClient) -> tuple[str, str]:
 
 
 def test_chat_exige_token(client: TestClient) -> None:
-    resposta = client.post("/v1/chat", json={"message": "oi"})
+    response = client.post("/v1/chat", json={"message": "oi"})
 
-    assert resposta.status_code == 401
+    assert response.status_code == 401
 
 
 def test_chat_emite_stream_e_fecha_com_done(client: TestClient, runner) -> None:
     token, _ = _session(client)
 
-    resposta = client.post(
+    response = client.post(
         "/v1/chat",
         json={"message": "tem violao?"},
         headers={"Authorization": f"Bearer {token}"},
     )
-    eventos = _eventos(resposta)
+    eventos = _eventos(response)
 
-    nomes = [nome for nome, _ in eventos]
-    assert resposta.status_code == 200
-    assert resposta.headers["content-type"].startswith("text/event-stream")
+    nomes = [name for name, _ in eventos]
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
     assert nomes[0] == "tool_call"
     assert "card" in nomes
     assert nomes.count("token") == 2
@@ -102,15 +102,15 @@ def test_texto_concatenado_dos_tokens_e_a_resposta(client: TestClient, runner) -
             headers={"Authorization": f"Bearer {token}"},
         )
     )
-    texto = "".join(data["delta"] for nome, data in eventos if nome == "token")
+    text = "".join(data["delta"] for name, data in eventos if name == "token")
 
     historico = client.get(
         f"/v1/sessions/{session_id}/messages", headers={"Authorization": f"Bearer {token}"}
     ).json()
 
-    assert texto == runner.texto
+    assert text == runner.text
     assert [item["role"] for item in historico["messages"]] == ["user", "assistant"]
-    assert historico["messages"][1]["content"] == runner.texto
+    assert historico["messages"][1]["content"] == runner.text
 
 
 def test_usage_cresce_depois_do_turno(client: TestClient, runner) -> None:
@@ -129,7 +129,7 @@ def test_usage_cresce_depois_do_turno(client: TestClient, runner) -> None:
 
 def test_guard_vai_no_evento_e_na_mensagem_persistida(client: TestClient) -> None:
     fake = FakeRunner(
-        texto="Deixa eu confirmar esses valores no sistema, ta?",
+        text="Deixa eu confirmar esses valores no sistema, ta?",
         guard="preco_sem_ferramenta",
     )
     app.dependency_overrides[get_runner] = lambda: fake
@@ -142,12 +142,12 @@ def test_guard_vai_no_evento_e_na_mensagem_persistida(client: TestClient) -> Non
             headers={"Authorization": f"Bearer {token}"},
         )
     )
-    done = next(data for nome, data in eventos if nome == "done")
+    done = next(data for name, data in eventos if name == "done")
     historico = client.get(
         f"/v1/sessions/{session_id}/messages", headers={"Authorization": f"Bearer {token}"}
     ).json()
 
-    assert "guard" in [nome for nome, _ in eventos]
+    assert "guard" in [name for name, _ in eventos]
     assert done["guard"] == "preco_sem_ferramenta"
     assert historico["messages"][1]["guard"] == "preco_sem_ferramenta"
     app.dependency_overrides.clear()
@@ -162,7 +162,7 @@ def test_historico_anterior_e_enviado_ao_agente(client: TestClient, runner) -> N
 
     assert len(runner.historico) == 2
     assert runner.historico[0].content == "primeira"
-    assert runner.historico[1].content == runner.texto
+    assert runner.historico[1].content == runner.text
 
 
 def test_orcamento_esgotado_devolve_429(
@@ -171,9 +171,9 @@ def test_orcamento_esgotado_devolve_429(
     token, session_id = _session(client)
     store.add_usage(session_id, TurnOutcome(answer="", tokens_in=10_000_000))
 
-    resposta = client.post(
+    response = client.post(
         "/v1/chat", json={"message": "oi"}, headers={"Authorization": f"Bearer {token}"}
     )
 
-    assert resposta.status_code == 429
-    assert resposta.json()["detail"]["code"] == "budget_exhausted"
+    assert response.status_code == 429
+    assert response.json()["detail"]["code"] == "budget_exhausted"

@@ -30,9 +30,9 @@ def parse_sse(body: str) -> list[tuple[str, dict[str, Any]]]:
     events: list[tuple[str, dict[str, Any]]] = []
     for bloco in body.strip().split("\n\n"):
         fields: dict[str, str] = {}
-        for linha in bloco.splitlines():
-            if ": " in linha:
-                key, value = linha.split(": ", 1)
+        for line in bloco.splitlines():
+            if ": " in line:
+                key, value = line.split(": ", 1)
                 fields[key] = value
         if "event" in fields:
             events.append((fields["event"], json.loads(fields["data"])))
@@ -49,16 +49,16 @@ def say(base_url: str, token: str, message: str) -> dict[str, Any]:
     guard = None
     request_id = None
 
-    for evento, dados in parse_sse(body):
+    for evento, payload in parse_sse(body):
         if evento == "token":
-            text.append(dados.get("delta", ""))
+            text.append(payload.get("delta", ""))
         elif evento == "tool_call":
-            if dados.get("status") == "start" and dados.get("name"):
-                tools.append(dados["name"])
+            if payload.get("status") == "start" and payload.get("name"):
+                tools.append(payload["name"])
         elif evento == "guard":
-            guard = dados.get("tipo")
+            guard = payload.get("tipo")
         elif evento == "done":
-            guard = dados.get("guard") or guard
-            request_id = dados.get("request_id")
+            guard = payload.get("guard") or guard
+            request_id = payload.get("request_id")
 
     return {"texto": "".join(text), "tools": tools, "guard": guard, "request_id": request_id}

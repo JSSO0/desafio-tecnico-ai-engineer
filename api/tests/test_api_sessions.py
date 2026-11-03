@@ -7,9 +7,9 @@ from app.runtime.store import RuntimeStore
 
 
 def _open_session(client: TestClient) -> tuple[str, str]:
-    resposta = client.post("/v1/sessions")
-    assert resposta.status_code == 201
-    corpo = resposta.json()
+    response = client.post("/v1/sessions")
+    assert response.status_code == 201
+    corpo = response.json()
     return corpo["access_token"], corpo["session_id"]
 
 
@@ -26,26 +26,26 @@ def test_abre_sessao_com_token_opaco(client: TestClient) -> None:
 
 
 def test_usage_sem_token_e_401(client: TestClient) -> None:
-    resposta = client.get("/v1/sessions/qualquer/usage")
+    response = client.get("/v1/sessions/qualquer/usage")
 
-    assert resposta.status_code == 401
-    assert resposta.json()["detail"]["code"] == "missing_token"
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "missing_token"
 
 
 def test_token_desconhecido_e_401(client: TestClient) -> None:
-    resposta = client.get("/v1/sessions/qualquer/usage", headers=_auth("nao-existe"))
+    response = client.get("/v1/sessions/qualquer/usage", headers=_auth("nao-existe"))
 
-    assert resposta.status_code == 401
-    assert resposta.json()["detail"]["code"] == "invalid_token"
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "invalid_token"
 
 
 def test_usage_inicial_zerado(client: TestClient) -> None:
     token, session_id = _open_session(client)
 
-    resposta = client.get(f"/v1/sessions/{session_id}/usage", headers=_auth(token))
-    corpo = resposta.json()
+    response = client.get(f"/v1/sessions/{session_id}/usage", headers=_auth(token))
+    corpo = response.json()
 
-    assert resposta.status_code == 200
+    assert response.status_code == 200
     assert corpo["tokens_total"] == 0
     assert corpo["remaining"] == corpo["budget_tokens"]
 
@@ -54,10 +54,10 @@ def test_token_nao_acessa_outra_sessao(client: TestClient) -> None:
     token, _ = _open_session(client)
     _, outra = _open_session(client)
 
-    resposta = client.get(f"/v1/sessions/{outra}/usage", headers=_auth(token))
+    response = client.get(f"/v1/sessions/{outra}/usage", headers=_auth(token))
 
-    assert resposta.status_code == 404
-    assert resposta.json()["detail"]["code"] == "session_not_found"
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "session_not_found"
 
 
 def test_encerrar_revoga_token_e_apaga_historico(client: TestClient) -> None:
@@ -85,7 +85,7 @@ def test_token_expirado_e_401(
         )
         conn.commit()
 
-    resposta = client.get(f"/v1/sessions/{session_id}/usage", headers=_auth(token))
+    response = client.get(f"/v1/sessions/{session_id}/usage", headers=_auth(token))
 
-    assert resposta.status_code == 401
-    assert resposta.json()["detail"]["code"] == "expired_token"
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "expired_token"

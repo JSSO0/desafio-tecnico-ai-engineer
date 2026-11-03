@@ -14,13 +14,13 @@ def test_extrai_valores_em_reais() -> None:
 
 
 def test_valor_ancorado_na_ferramenta_passa() -> None:
-    resposta = "O Takamine GD20 custa R$ 2.199,00."
+    response = "O Takamine GD20 custa R$ 2.199,00."
     ferramenta = '{"preco": "R$ 2.199,00", "price_brl": 2199.0}'
 
-    final, guard = enforce_price_grounding(resposta, ferramenta)
+    final, guard = enforce_price_grounding(response, ferramenta)
 
     assert guard is None
-    assert final == resposta
+    assert final == response
 
 
 def test_valor_inventado_e_bloqueado() -> None:

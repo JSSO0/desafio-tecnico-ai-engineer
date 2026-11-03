@@ -261,10 +261,10 @@ def data_quality_report(conn: sqlite3.Connection) -> dict[str, list[dict[str, ob
         {
             "order_id": order_id,
             "total_brl": total,
-            "soma_itens": round(soma, 2),
-            "diferenca": round(total - soma, 2),
+            "soma_itens": round(items_total, 2),
+            "diferenca": round(total - items_total, 2),
         }
-        for order_id, total, soma in conn.execute(
+        for order_id, total, items_total in conn.execute(
             """
             SELECT o.order_id, o.total_brl,
                    COALESCE(SUM(i.quantity * p.price_brl), 0) AS soma

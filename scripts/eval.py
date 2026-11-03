@@ -28,12 +28,12 @@ def normalize(text: str) -> str:
     return "".join(ch for ch in decomposto if not unicodedata.combining(ch)).lower()
 
 
-def _missing(texto: str, esperados: list[str]) -> list[str]:
-    return [f"faltou {item!r}" for item in esperados if normalize(item) not in texto]
+def _missing(text: str, esperados: list[str]) -> list[str]:
+    return [f"faltou {item!r}" for item in esperados if normalize(item) not in text]
 
 
-def _forbidden(texto: str, proibidos: list[str]) -> list[str]:
-    return [f"nao podia conter {item!r}" for item in proibidos if normalize(item) in texto]
+def _forbidden(text: str, proibidos: list[str]) -> list[str]:
+    return [f"nao podia conter {item!r}" for item in proibidos if normalize(item) in text]
 
 
 def _missing_tools(usadas: list[str], esperadas: list[str]) -> list[str]:
@@ -42,10 +42,10 @@ def _missing_tools(usadas: list[str], esperadas: list[str]) -> list[str]:
 
 def evaluate(case: dict[str, Any], result: dict[str, Any]) -> list[str]:
     """Cada regra e uma funcao pura; sem laco aninhado e sem acessar chave que pode faltar."""
-    texto = normalize(result.get("texto", ""))
+    text = normalize(result.get("texto", ""))
     failures = [
-        *_missing(texto, case.get("deve_conter", [])),
-        *_forbidden(texto, case.get("nao_deve_conter", [])),
+        *_missing(text, case.get("deve_conter", [])),
+        *_forbidden(text, case.get("nao_deve_conter", [])),
         *_missing_tools(result.get("tools", []), case.get("tools_esperadas", [])),
     ]
     esperado = case.get("guard_esperado")
@@ -73,8 +73,8 @@ def main(argv: list[str] | None = None) -> int:
         token = open_session(args.base_url)
         accumulated = {"texto": "", "tools": [], "guard": None, "request_id": None}
         try:
-            for mensagem in case["mensagens"]:
-                turno = say(args.base_url, token, mensagem)
+            for message in case["mensagens"]:
+                turno = say(args.base_url, token, message)
                 accumulated["texto"] += "\n" + turno["texto"]
                 accumulated["tools"] += turno["tools"]
                 accumulated["guard"] = turno["guard"] or accumulated["guard"]

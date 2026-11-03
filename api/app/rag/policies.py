@@ -36,12 +36,12 @@ STOPWORDS_PATH = Path(__file__).with_name("stopwords.txt")
 @lru_cache
 def load_stopwords() -> frozenset[str]:
     """Stopwords ficam em arquivo porque sao dado de dominio, ajustado por observacao."""
-    linhas = STOPWORDS_PATH.read_text(encoding="utf-8").splitlines()
+    lines = STOPWORDS_PATH.read_text(encoding="utf-8").splitlines()
     return frozenset(
         palavra
-        for linha in linhas
-        if not linha.lstrip().startswith("#")
-        for palavra in linha.split()
+        for line in lines
+        if not line.lstrip().startswith("#")
+        for palavra in line.split()
     )
 
 
@@ -55,7 +55,7 @@ class PolicyHit:
     secao: str
     secao_pai: str
     title: str
-    texto: str
+    text: str
     pagina: int | None
     versao: str | None
     score: float
@@ -66,7 +66,7 @@ class PolicyHit:
             "secao": self.secao,
             "secao_pai": self.secao_pai,
             "titulo": self.title,
-            "texto": self.texto,
+            "texto": self.text,
             "pagina": self.pagina,
             "versao": self.versao,
             "score": self.score,
@@ -75,9 +75,9 @@ class PolicyHit:
 
 def extract_terms(question: str) -> list[str]:
     terms = [
-        termo
-        for termo in _TERMO.findall(normalize(question))
-        if len(termo) >= 2 and termo not in STOPWORDS
+        term
+        for term in _TERMO.findall(normalize(question))
+        if len(term) >= 2 and term not in STOPWORDS
     ]
     return list(dict.fromkeys(terms))[:MAX_TERMOS]
 
@@ -89,28 +89,28 @@ def build_query(question: str) -> str:
         return ""
 
     expressions: list[str] = []
-    for termo in terms:
-        expressions.append(f'"{termo}"')
-        if len(termo) >= PREFIXO_MIN:
-            expressions.append(f'"{termo[:PREFIXO_MIN]}"*')
+    for term in terms:
+        expressions.append(f'"{term}"')
+        if len(term) >= PREFIXO_MIN:
+            expressions.append(f'"{term[:PREFIXO_MIN]}"*')
     return " OR ".join(expressions)
 
 
-def _prefix(termo: str) -> str:
-    return termo[:PREFIXO_MIN] if len(termo) >= PREFIXO_MIN else termo
+def _prefix(term: str) -> str:
+    return term[:PREFIXO_MIN] if len(term) >= PREFIXO_MIN else term
 
 
 def _term_weights(conn: sqlite3.Connection, terms: list[str]) -> dict[str, float]:
     """IDF sobre os blocos do manual: termo raro pesa mais que termo onipresente."""
     total = conn.execute("SELECT COUNT(*) FROM policies").fetchone()[0] or 1
     weights: dict[str, float] = {}
-    for termo in terms:
-        prefixo = _prefix(termo)
-        expression = f'"{prefixo}"*' if len(termo) >= PREFIXO_MIN else f'"{termo}"'
+    for term in terms:
+        prefixo = _prefix(term)
+        expression = f'"{prefixo}"*' if len(term) >= PREFIXO_MIN else f'"{term}"'
         df = conn.execute(
             "SELECT COUNT(*) FROM policies_fts WHERE policies_fts MATCH ?", (expression,)
         ).fetchone()[0]
-        weights[termo] = math.log(1 + total / max(df, 1))
+        weights[term] = math.log(1 + total / max(df, 1))
     return weights
 
 
@@ -120,7 +120,7 @@ def search_policies(conn: sqlite3.Connection, question: str, limit: int = 3) -> 
     if not query:
         return []
 
-    limite = max(1, min(limit, 5))
+    limit = max(1, min(limit, 5))
     weights = _term_weights(conn, terms)
     rows = conn.execute(
         """
@@ -132,7 +132,7 @@ def search_policies(conn: sqlite3.Connection, question: str, limit: int = 3) -> 
         ORDER BY bm25(policies_fts)
         LIMIT ?
         """,
-        (query, max(limite * 4, CANDIDATOS_MIN)),
+        (query, max(limit * 4, CANDIDATOS_MIN)),
     ).fetchall()
 
     candidates: list[PolicyHit] = []
@@ -140,16 +140,16 @@ def search_policies(conn: sqlite3.Connection, question: str, limit: int = 3) -> 
         haystack = normalize(f"{row['titulo']} {row['texto']}")
         title = normalize(row["titulo"])
         coverage = sum(
-            weight * (TITULO_BOOST if _prefix(termo) in title else 1.0)
-            for termo, weight in weights.items()
-            if _prefix(termo) in haystack
+            weight * (TITULO_BOOST if _prefix(term) in title else 1.0)
+            for term, weight in weights.items()
+            if _prefix(term) in haystack
         )
         candidates.append(
             PolicyHit(
                 secao=row["secao"],
                 secao_pai=row["secao_pai"],
                 title=row["titulo"],
-                texto=row["texto"],
+                text=row["texto"],
                 pagina=row["pagina"],
                 versao=row["versao"],
                 score=row["score"],
@@ -158,4 +158,4 @@ def search_policies(conn: sqlite3.Connection, question: str, limit: int = 3) -> 
         )
 
     candidates.sort(key=lambda hit: (-hit.coverage, hit.score))
-    return candidates[:limite]
+    return candidates[:limit]

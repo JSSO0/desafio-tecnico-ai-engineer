@@ -11,9 +11,9 @@ from app.db.build import build_database, data_quality_report, load_policies
 
 
 def _copy_data(data_dir: Path, destination: Path) -> Path:
-    destino = destination / "data"
-    shutil.copytree(data_dir, destino)
-    return destino
+    destination = destination / "data"
+    shutil.copytree(data_dir, destination)
+    return destination
 
 
 def _products_csv(data_dir: Path) -> Path:
@@ -53,16 +53,16 @@ def test_build_fails_loudly_on_invalid_specs_json(
     tmp_path: Path, data_dir: Path, policies_dir: Path
 ) -> None:
     copia = _copy_data(data_dir, tmp_path)
-    produtos = _products_csv(copia)
-    with produtos.open(encoding="utf-8-sig", newline="") as handle:
+    products = _products_csv(copia)
+    with products.open(encoding="utf-8-sig", newline="") as handle:
         leitor = csv.DictReader(handle)
         campos = leitor.fieldnames or []
-        linhas = list(leitor)
-    linhas[0]["specs"] = "{isto nao e json"
-    with produtos.open("w", encoding="utf-8", newline="") as handle:
+        lines = list(leitor)
+    lines[0]["specs"] = "{isto nao e json"
+    with products.open("w", encoding="utf-8", newline="") as handle:
         escritor = csv.DictWriter(handle, fieldnames=campos)
         escritor.writeheader()
-        escritor.writerows(linhas)
+        escritor.writerows(lines)
 
     with pytest.raises(DataSourceError, match="specs invalido no produto"):
         build_database(tmp_path / "loja.db", copia, copia / "policies")
@@ -91,10 +91,10 @@ def test_policy_chunks_carry_complete_provenance(conn: sqlite3.Connection) -> No
     ).fetchall()
 
     assert len(rows) == 25
-    for secao, titulo, texto, pagina, versao in rows:
+    for secao, titulo, text, pagina, versao in rows:
         assert secao
         assert titulo
-        assert texto.strip()
+        assert text.strip()
         assert pagina is not None and 1 <= pagina <= 10
         assert versao == "2.1"
 
@@ -105,7 +105,7 @@ def test_policy_loader_fails_when_directory_is_empty(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("termo", "secao"),
+    ("term", "secao"),
     [
         ("devolucao", "4.1"),
         ("arrependimento", "4.1"),
@@ -116,15 +116,15 @@ def test_policy_loader_fails_when_directory_is_empty(tmp_path: Path) -> None:
         ("acessorios", "1"),
     ],
 )
-def test_fts_retrieves_expected_section(conn: sqlite3.Connection, termo: str, secao: str) -> None:
+def test_fts_retrieves_expected_section(conn: sqlite3.Connection, term: str, secao: str) -> None:
     rows = conn.execute(
         "SELECT secao FROM policies_fts"
         " WHERE policies_fts MATCH ? ORDER BY bm25(policies_fts) LIMIT 3",
-        (termo,),
+        (term,),
     ).fetchall()
 
-    assert rows, f"nenhum resultado para {termo!r}"
-    assert secao in {row[0] for row in rows}, f"{termo!r} nao trouxe a secao {secao}"
+    assert rows, f"nenhum resultado para {term!r}"
+    assert secao in {row[0] for row in rows}, f"{term!r} nao trouxe a secao {secao}"
 
 
 def test_fts_handles_accented_query(conn: sqlite3.Connection) -> None:
@@ -188,14 +188,14 @@ def test_inactive_promotions_never_reach_the_view(conn: sqlite3.Connection) -> N
 
 def test_stock_is_current_snapshot_not_history(conn: sqlite3.Connection) -> None:
     """Pedido 4 (entregue) contem o produto 96, hoje com estoque 0. Nao inferir falta na epoca."""
-    estoque = conn.execute(
+    stock = conn.execute(
         "SELECT stock_quantity FROM products WHERE product_id = 96"
     ).fetchone()[0]
     no_pedido = conn.execute(
         "SELECT COUNT(*) FROM order_items WHERE order_id = 4 AND product_id = 96"
     ).fetchone()[0]
 
-    assert estoque == 0
+    assert stock == 0
     assert no_pedido == 1
 
 

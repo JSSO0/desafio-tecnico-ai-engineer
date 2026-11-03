@@ -30,13 +30,13 @@ def test_build_query_drops_stopwords_and_returns_empty_for_noise() -> None:
 
 
 def test_build_query_caps_the_number_of_terms() -> None:
-    pergunta = " ".join(f"termo{indice}" for indice in range(30))
+    question = " ".join(f"termo{indice}" for indice in range(30))
 
-    assert len(extract_terms(pergunta)) == MAX_TERMOS
+    assert len(extract_terms(question)) == MAX_TERMOS
 
 
 @pytest.mark.parametrize(
-    ("pergunta", "secao"),
+    ("question", "secao"),
     [
         ("posso devolver minha compra?", "4.1"),
         ("me arrependi da compra online", "4.1"),
@@ -52,20 +52,20 @@ def test_build_query_caps_the_number_of_terms() -> None:
     ],
 )
 def test_search_handles_natural_language(
-    conn: sqlite3.Connection, pergunta: str, secao: str
+    conn: sqlite3.Connection, question: str, secao: str
 ) -> None:
-    hits = search_policies(conn, pergunta)
+    hits = search_policies(conn, question)
 
-    assert hits, f"nenhum resultado para {pergunta!r}"
+    assert hits, f"nenhum resultado para {question!r}"
     assert secao in {hit.secao for hit in hits}, (
-        f"{pergunta!r} deveria trazer §{secao}, trouxe {[h.secao for h in hits]}"
+        f"{question!r} deveria trazer §{secao}, trouxe {[h.secao for h in hits]}"
     )
 
 
 def test_search_handles_accent_and_case_variants(conn: sqlite3.Connection) -> None:
     resultados = [
-        tuple(hit.secao for hit in search_policies(conn, texto))
-        for texto in ("devolução", "DEVOLUÇÃO", "devolucao")
+        tuple(hit.secao for hit in search_policies(conn, text))
+        for text in ("devolução", "DEVOLUÇÃO", "devolucao")
     ]
 
     assert resultados[0]
@@ -80,7 +80,7 @@ def test_prefix_stemming_matches_verb_and_noun(conn: sqlite3.Connection) -> None
 
 
 @pytest.mark.parametrize(
-    "pergunta",
+    "question",
     [
         'devolução OR NEAR("x"*)',
         "devolução -compra *",
@@ -89,9 +89,9 @@ def test_prefix_stemming_matches_verb_and_noun(conn: sqlite3.Connection) -> None
     ],
 )
 def test_search_survives_fts_operators_in_free_text(
-    conn: sqlite3.Connection, pergunta: str
+    conn: sqlite3.Connection, question: str
 ) -> None:
-    hits = search_policies(conn, pergunta)
+    hits = search_policies(conn, question)
 
     assert "4.1" in {hit.secao for hit in hits}
 
@@ -130,7 +130,7 @@ def test_hit_carries_provenance(conn: sqlite3.Connection) -> None:
     assert hit.secao == "4.1"
     assert hit.pagina == 4
     assert hit.versao == "2.1"
-    assert "7 (sete) dias corridos" in hit.texto
+    assert "7 (sete) dias corridos" in hit.text
 
 
 def test_stopwords_are_clean_tokens() -> None:

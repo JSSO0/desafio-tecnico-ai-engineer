@@ -51,9 +51,9 @@ class Settings(BaseSettings):
     def allowed_origins(self) -> list[str]:
         """Origem liberada para a interface. Lista vazia desliga o CORS."""
         return [
-            origem.strip()
-            for origem in self.cors_origins.split(",")
-            if origem.strip()
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
         ]
 
     @property

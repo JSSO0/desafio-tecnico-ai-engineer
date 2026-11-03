@@ -81,13 +81,13 @@ CONVERSATIONS = [
 def _run(base_url: str, conversation: dict[str, Any]) -> list[dict[str, Any]]:
     token = open_session(base_url)
     return [
-        {"pergunta": mensagem, **say(base_url, token, mensagem)}
-        for mensagem in conversation["turnos"]
+        {"pergunta": message, **say(base_url, token, message)}
+        for message in conversation["turnos"]
     ]
 
 
 def _citacao(tools: list[str]) -> str:
-    return ", ".join(f"`{nome}`" for nome in tools)
+    return ", ".join(f"`{name}`" for name in tools)
 
 
 def _markdown(
@@ -120,7 +120,7 @@ def _markdown(
         lines.append("---")
         lines.append("")
 
-    tools = sorted({nome for turno in rounds for nome in turno["tools"]})
+    tools = sorted({name for turno in rounds for name in turno["tools"]})
     guards = sorted({turno["guard"] for turno in rounds if turno["guard"]})
     lines += [
         "## O que aconteceu",
@@ -141,7 +141,7 @@ def main(base_url: str = "http://127.0.0.1:8000") -> int:
         rounds = _run(base_url, conversation)
         path = DESTINO / f"{conversation['arquivo']}.md"
         path.write_text(_markdown(conversation, rounds, base_url), encoding="utf-8")
-        used = sorted({nome for turno in rounds for nome in turno["tools"]})
+        used = sorted({name for turno in rounds for name in turno["tools"]})
         print(f"{path.name:34} turnos={len(rounds)} tools={','.join(used) or '-'}")
 
     return 0

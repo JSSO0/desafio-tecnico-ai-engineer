@@ -39,14 +39,14 @@ def _render(result, *, as_json: bool) -> str:
             ensure_ascii=False,
         )
 
-    linhas = [f"assistente> {result.answer}"]
+    lines = [f"assistente> {result.answer}"]
     meta = f"  · tools: {', '.join(result.tools_used) or 'nenhuma'}"
     meta += f" · tokens: {result.tokens_in} in / {result.tokens_out} out"
     meta += f" · prompt v{result.prompt_version}"
     if result.guard:
         meta += f" · GUARD: {result.guard}"
-    linhas.append(meta)
-    return "\n".join(linhas)
+    lines.append(meta)
+    return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -68,17 +68,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Emporio da Musica · prompt v{active_prompt_version()} · Ctrl+C ou 'sair' para encerrar")
     while True:
         try:
-            entrada = input("cliente> ")
+            line = input("cliente> ")
         except (EOFError, KeyboardInterrupt):
             print()
             break
 
-        if entrada.strip().lower() in {"sair", "exit", "quit"}:
+        if line.strip().lower() in {"sair", "exit", "quit"}:
             break
-        if not entrada.strip():
+        if not line.strip():
             continue
 
-        resultado = run_turn(agent, history, entrada)
+        resultado = run_turn(agent, history, line)
         print(_render(resultado, as_json=args.json))
         history.extend(resultado.messages)
 
