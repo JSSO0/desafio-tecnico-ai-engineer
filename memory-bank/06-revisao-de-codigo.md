@@ -69,3 +69,27 @@ Verificação: 159 testes, `ruff` limpo, evals 14/14.
 **Lição de método:** a primeira passada foi aplicada onde eu estava mexendo, não onde o problema
 existia. Revisão que aponta um caso costuma apontar uma classe — vale varrer a classe antes de
 fechar o item.
+
+## Rodada 3 — o contrato com o modelo também virou inglês
+
+Nomes de ferramenta e parâmetros do schema foram traduzidos: `search_products`, `product_detail`,
+`identify_customer`, `lookup_order`, `lookup_policy`, `simulate_payment`; e os parâmetros `query`,
+`category`, `min_price`, `max_price`, `only_available`, `limit`, `name_or_id`, `phone`, `question`,
+`amount`, `method`, `installments`, `promo_price`.
+
+**O modelo não precisou de ajuste de prompt** — ele lê o schema. Evals seguiram 14/14, agora chamando
+`identify_customer` e `lookup_order` em vez dos nomes antigos.
+
+### O que ficou em português, com número
+
+As chaves de saída (`secao`, `titulo`, `preco`…) ficaram, e não por preguiça: são lidas por
+`web/app.js` em **32 chaves espalhadas por ~35 pontos**, mais 4 chaves e 6 valores no payload SSE, mais
+as colunas do banco e o front-matter dos 10 arquivos de política. **Nenhum teste cobre chave de card** —
+um erro ali só aparece na tela. Traduzir só o payload moveria a inconsistência de lugar.
+
+### Um bug de ambiente que só apareceu testando
+
+Ao validar o chip na interface, ele caiu no rótulo genérico mesmo com o mapa correto: o navegador
+estava com `app.js` em cache e o servidor com a API nova. Sintoma idêntico a bug de contrato. O nginx
+passou a servir `html`, `js` e `css` com `Cache-Control: no-store`; durante integração, JS antigo com
+API nova custa mais caro que um re-download.
