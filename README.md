@@ -13,6 +13,7 @@ section-level retrieval, and it declines what falls outside the store's scope.
 |---|---|
 | Instructions to run: environment, model provider, commands | [Running it](#running-it) |
 | Justification of technical decisions: framework, LLM, retrieval, prompt strategy | [Technical decisions](#technical-decisions) |
+| How the solution was designed under the deadline | [How this was built](#how-this-was-built) |
 | Known limitations and what I would do with more time | [Known limitations](#known-limitations-and-what-i-would-do-with-more-time) |
 | Use of code assistants: which, and how | [Use of code assistants](#use-of-code-assistants) |
 
@@ -133,12 +134,87 @@ masked.
 
 ## Architecture
 
-C4 diagrams (context, containers, components, deployment and dynamic) in Mermaid, with the notation
-key and the scope rationale: [`docs/architecture/c4.md`](docs/architecture/c4.md).
+```mermaid
+flowchart LR
+    cliente(["Customer\nthe person"])
 
-In one sentence: client → FastAPI (session, guardrails, ReAct agent, RAG, limits, audit) → read-only
-operational SQLite + runtime SQLite + JSONL trail, with an external LLM provider chosen by
-configuration.
+    subgraph sistema["Empório da Música support"]
+        direction TB
+        web["Support interface\nReact 18 + htm · chat, cards, token meter"]
+        api["Support API\nPython 3.12 · FastAPI · LangChain"]
+        lojaDb[("Operational base\nSQLite · catalogue, orders, policy")]
+        runtimeDb[("Runtime state\nSQLite WAL · sessions, history, usage")]
+        auditDb[("Audit trail\nJSONL · one record per turn")]
+    end
+
+    llm[["LLM provider\nopenai | anthropic | deepseek"]]
+
+    cliente -->|"HTTPS"| web
+    web -->|"Bearer + SSE"| api
+    api -->|"read-only SELECT"| lojaDb
+    api -->|"session, message, usage"| runtimeDb
+    api -->|"append"| auditDb
+    api -->|"prompt + tools\nHTTPS"| llm
+```
+
+*Rounded box = person · plain box = container · cylinder = data store · double border = external
+system. Same key across all diagrams.*
+
+The browser talks to a static interface served by nginx, which proxies to a **single** Python
+container. That container owns everything that must be trusted — session, guardrails, the agent loop,
+retrieval, limits and audit — and reaches three stores plus one external provider.
+
+**Why one API container and not an agent service:** the agent is an in-memory graph in the same
+process; splitting it would put a network hop between the agent and the database on every tool call,
+with nothing gained at this volume.
+
+**Why two SQLite files:** the operational base is rebuilt from the CSVs and opened read-only, while
+runtime state is written every turn. One file would mean a data rebuild erasing sessions, or a session
+write touching a read-only dataset.
+
+The full C4 set — context, components, deployment and a dynamic diagram of one turn — is in
+[`docs/architecture/c4.md`](docs/architecture/c4.md), with the notation key and the scope rationale.
+
+---
+
+## How this was built
+
+The brief left almost everything open — framework, model, interface, persistence — and imposed one
+constraint: Python. With two days, the risk was not picking the wrong tool; it was **building breadth
+and losing correctness**. Six choices shaped the work:
+
+**1. Read the data before designing anything.** Six CSVs and an 8-page policy manual were analysed
+before the first line of code: volume, referential integrity, and seven traps (divergent totals, stock
+as a snapshot rather than history, three empty categories, an inactive promotion on the best-known
+product). That analysis became both the assumption table and the eval cases. The first design artifact
+was a list of ways to be wrong.
+
+**2. Model the problem by how knowledge fails, not by layer.** Two kinds of knowledge, two failure
+modes: structured data needs exact filters and joins; policy text needs citation and refusal. That one
+distinction produced the architecture — typed tools versus section retrieval — and prevented the
+temptation to build a single generic RAG for everything.
+
+**3. The smallest vertical slice, end to end.** Before the API, the interface or the guardrails, the
+agent answered the four scenarios from the brief through a CLI. A thin slice through every layer finds
+integration problems while they are still cheap to fix.
+
+**4. Freeze the interface in the middle, not at the end.** The API contract was frozen after the agent
+worked and before the UI was integrated, so the frontend was built against a stable schema. Everything
+after that was additive.
+
+**5. Treat the deadline as a design input.** Two days meant an explicit cut list, agreed before
+starting: no embeddings, no C4 level 4, no public deploy, no CI. The list is in the limitations
+section with the reason for each — cutting is a decision, not a failure.
+
+**6. Verify with the artifact that can actually be wrong.** Unit tests cover our boundaries; the 15
+eval cases run the **real model through the real API**, because that is where tool calling and tone
+fail. A mock would have hidden exactly the problems that mattered.
+
+**The process was corrected twice, and both are documented.** A code review at the end produced ten
+points — eight accepted (long parameter lists, missing response schemas, inconsistent naming), two
+rejected with reasons (`try/except` around everything hides bugs; `for` loops over test data have no
+infinite-loop risk). An independent test session ran 20 cases in the browser and found four real
+defects the 162 tests had missed, because those tests checked tools and contract, not conversation.
 
 ---
 
