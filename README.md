@@ -1,32 +1,32 @@
-# Empório da Música — Agente de Atendimento
+# Empório da Música — Customer Support Agent
 
-Agente de atendimento ao cliente da **Empório da Música** (loja fictícia de instrumentos musicais, Campo Grande/MS), construído como entrega do desafio técnico de AI Engineer da Artefact.
+A customer-support agent for **Empório da Música** (a fictional musical-instrument store in Campo
+Grande, Brazil), built as the deliverable for Artefact's AI Engineer technical challenge.
 
-O agente conversa em português com o tom da loja, consulta **dados operacionais** (catálogo, pedidos) por ferramentas determinísticas e **políticas internas** por recuperação por seção, recusando o que foge do escopo.
-
-> **Status:** em construção. Fundação pronta (container, health checks, abstração de provedor).
-> Fases e gates em [`memory-bank/03-fases-e-gates.md`](memory-bank/03-fases-e-gates.md).
+The agent talks to customers in Portuguese, in the store's own voice. It answers from **operational
+data** (catalogue, orders) through deterministic tools and from **internal policy** through
+section-level retrieval, and it declines what falls outside the store's scope.
 
 ---
 
 ## Stack
 
-| Camada | Escolha |
+| Layer | Choice |
 |---|---|
-| Linguagem | Python 3.12 |
-| Agente | LangChain v1 (`create_agent`, loop ReAct) |
-| API | FastAPI (OpenAPI/Swagger nativo) |
-| Dados | SQLite (a partir dos CSVs originais) |
-| Políticas | Markdown por seção + FTS5/BM25 (SQLite) |
-| Provedores | OpenAI, Anthropic, DeepSeek (troca por `.env`) |
+| Language | Python 3.12 |
+| Agent | LangChain v1 (`create_agent`, ReAct loop) |
+| API | FastAPI (native OpenAPI/Swagger) |
+| Data | SQLite (built from the original CSVs) |
+| Policy | Markdown per section + FTS5/BM25 (SQLite) |
+| Providers | OpenAI, Anthropic, DeepSeek (switch via `.env`) |
 | Infra | Docker Compose |
 
 ---
 
-## Como rodar
+## Running it
 
 ```bash
-cp .env.example .env      # preencha a chave do provedor escolhido
+cp .env.example .env      # fill in the key of the provider you chose
 docker compose up --build
 ```
 
@@ -34,53 +34,53 @@ docker compose up --build
 - API: <http://localhost:8000>
 - Swagger: <http://localhost:8000/docs>
 - Health: <http://localhost:8000/healthz> · <http://localhost:8000/readyz>
-- Configuração ativa: <http://localhost:8000/v1/meta>
+- Active configuration: <http://localhost:8000/v1/meta>
 
-Para desenvolver a interface sem Docker: `cd web && python serve.py` (sobe em
-<http://localhost:5173>). Detalhes em [`web/README.md`](web/README.md).
+To work on the interface without Docker: `cd web && python serve.py` (serves on
+<http://localhost:5173>). Details in [`web/README.md`](web/README.md).
 
-### Testando a interface
+### Trying the interface
 
-Abra <http://localhost:8080> e clique em **Iniciar atendimento**. Três mensagens cobrem os caminhos
-principais:
+Open <http://localhost:8080> and click **Iniciar atendimento**. Three messages cover the main paths:
 
-| Digite | O que deve acontecer |
+| Type this | What should happen |
 |---|---|
-| `Quais opções de violões vocês têm disponíveis custando até R$1000?` | chip `buscar_produtos` + card com preço e estoque; **12 itens**, sem o esgotado e o descontinuado |
-| `Oi, meu pedido não chegou. Meu telefone é (67) 98432-1098` | chip `identificar_cliente` + `consultar_pedido`; dois pedidos, um cancelado com motivo |
-| `Me arrependi da compra online, posso devolver?` | chip `consultar_politicas`; prazo de 7 dias, reembolso em 10 dias úteis, §4.1 citada |
+| `Quais opções de violões vocês têm disponíveis custando até R$1000?` | `search_products` chip + card with price and stock; **12 items**, excluding the out-of-stock and the discontinued one |
+| `Oi, meu pedido não chegou. Meu telefone é (67) 98432-1098` | `identify_customer` + `lookup_order` chips; two orders, one cancelled with its reason |
+| `Me arrependi da compra online, posso devolver?` | `lookup_policy` chip; 7-day window, 10-business-day refund, §4.1 cited |
 
-O painel **Sessão** mostra consumo de tokens, saldo do orçamento e o estado de `/healthz`, `/readyz`
-e `/v1/meta`. O campo **URL DA API** vem com `http://localhost:8000` e é salvo em `localStorage`.
+The **Sessão** panel shows token usage, remaining budget and the state of `/healthz`, `/readyz` and
+`/v1/meta`. The **API URL** field defaults to `http://localhost:8000` and is saved in `localStorage`.
 
-Para usar o próprio nginx — mesma origem, sem CORS, e o caminho que funciona de outra máquina —
-preencha o campo com a **origem da página** (`http://localhost:8080`) e clique em **Conectar**. O
-nginx encaminha `/v1`, `/healthz`, `/readyz` e `/docs` para a API. Campo vazio volta ao default.
+To go through the bundled nginx — same origin, no CORS, and the path that also works from another
+machine — set the field to the **page origin** (`http://localhost:8080`) and click **Conectar**. The
+nginx proxies `/v1`, `/healthz`, `/readyz` and `/docs` to the API. An empty field falls back to the
+default.
 
-### Problemas comuns
+### Troubleshooting
 
-| Sintoma | Causa e saída |
+| Symptom | Cause and fix |
 |---|---|
-| "API offline" no painel | a API não subiu: `docker compose logs api` |
-| `401 expired_token` | sessão de 30 min venceu: **Nova sessão** |
-| `429 rate_limited` | passou de 10 mensagens no minuto; espere o `Retry-After` |
-| `429 too_many_sessions` | 120 sessões/hora por origem; o `eval.py` consome 14 por execução |
-| `400 message_too_long` | mensagem acima de 800 caracteres |
-| Resposta sem preço, pedindo confirmação | o gate atuou: `logs/audit-AAAA-MM-DD.jsonl`, campo `guard` |
+| "API offline" in the panel | the API did not start: `docker compose logs api` |
+| `401 expired_token` | the 30-minute session expired: **Nova sessão** |
+| `429 rate_limited` | more than 10 messages in a minute; wait for `Retry-After` |
+| `429 too_many_sessions` | 120 sessions per hour per origin; `eval.py` uses 15 per run |
+| `400 message_too_long` | message above 800 characters |
+| Answer without a price, asking to confirm | the gate acted: see `logs/audit-YYYY-MM-DD.jsonl`, field `guard` |
 
 ```bash
-docker compose ps                        # estado dos servicos
-docker compose logs -f api               # o que a API esta fazendo
-docker compose down                      # para, mantendo os dados
-docker compose down -v                   # apaga tudo: reconstroi a base dos CSVs na proxima subida
+docker compose ps                        # service status
+docker compose logs -f api               # what the API is doing
+docker compose down                      # stop, keeping data
+docker compose down -v                   # wipe everything: rebuilds the base from CSVs on next start
 ```
 
-A trilha de auditoria fica em `logs/audit-AAAA-MM-DD.jsonl`, um registro por turno, com telefone e
-e-mail mascarados.
+The audit trail lives in `logs/audit-YYYY-MM-DD.jsonl`, one record per turn, with phone and e-mail
+masked.
 
-### Trocar de provedor
+### Switching provider
 
-Uma linha no `.env`, sem tocar em código:
+One line in `.env`, no code change:
 
 ```env
 LLM_PROVIDER=openai
@@ -89,217 +89,217 @@ LLM_MODEL=gpt-4.1-mini
 
 ---
 
-## Arquitetura
+## Architecture
 
-Diagramas C4 (contexto, contêineres, componentes, implantação e dinâmico) em Mermaid, com a chave de
-notação e a justificativa de escopo: [`docs/architecture/c4.md`](docs/architecture/c4.md).
+C4 diagrams (context, containers, components, deployment and dynamic) in Mermaid, with the notation
+key and the scope rationale: [`docs/architecture/c4.md`](docs/architecture/c4.md).
 
-Em uma frase: cliente → API FastAPI (sessão, guardrails, agente ReAct, RAG, limites, auditoria) →
-SQLite operacional somente leitura + SQLite de execução + trilha JSONL, com provedor de LLM externo
-escolhido por configuração.
+In one sentence: client → FastAPI (session, guardrails, ReAct agent, RAG, limits, audit) → read-only
+operational SQLite + runtime SQLite + JSONL trail, with an external LLM provider chosen by
+configuration.
 
-## Decisões técnicas
+## Technical decisions
 
-*(justificativa completa no fechamento — ver `docs/adr/` e `memory-bank/01-arquitetura-e-decisoes.md`)*
+*(full rationale in `docs/adr/` and `memory-bank/01-arquitetura-e-decisoes.md`)*
 
-- **Híbrido ferramenta + seção:** dados operacionais por 6 ferramentas tipadas sobre SQLite;
-  políticas por recuperação em 25 blocos do manual, com citação. Nada de RAG sobre CSV.
-- **Retrieval lexical (FTS5/BM25)** com prefixo de 5 caracteres e re-rank por cobertura com IDF:
-  280 tokens de política por turno contra 2.930 do manual inteiro.
-- **Token opaco de sessão** em vez de JWT (revogação e orçamento por sessão) — ADR 0002.
-- **Guardrail no código, não no prompt** — o gate de preço roda sobre a saída.
-- **Nomenclatura:** identificador em inglês, fronteira em português (ADR 0005).
+- **Hybrid: tools + sections.** Operational data through 6 typed tools over SQLite; policy through
+  retrieval over 25 blocks of the manual, with citation. No RAG over CSV.
+- **Lexical retrieval (FTS5/BM25)** with a 5-character prefix and coverage re-ranking by IDF: ~280
+  policy tokens per turn against 2,930 for the whole manual.
+- **Opaque session token** instead of JWT (revocation and per-session budget) — ADR 0002.
+- **Guardrail in code, not in the prompt** — the price gate runs over the output.
+- **Naming:** code, tool names and tool schema in English; payload keys in Portuguese (ADR 0005).
 
-## Guardrails, limites e custo
+## Guardrails, limits and cost
 
-| Camada | O que faz |
+| Layer | What it does |
 |---|---|
-| Entrada (código) | recusa mensagem acima de 800 caracteres (`400`) e tentativa explícita de desvio (`guard: injection_attempt`, sem chamar o provedor) |
-| Modelo | persona e tom do manual; proibição de afirmar preço, estoque ou prazo sem ferramenta |
-| Saída (código) | gate de preço: todo `R$` precisa existir em resultado de ferramenta do mesmo turno |
-| Autorização | token opaco; `consultar_pedido` usa o cliente da sessão, nunca um id vindo do modelo |
-| Custo | orçamento de 60 mil tokens por sessão, 10 mensagens/minuto por sessão, 20 sessões/hora por origem |
-| Auditoria | uma linha JSONL por turno em `logs/`, com telefone e e-mail mascarados |
+| Input (code) | rejects messages above 800 characters (`400`) and explicit instruction-override attempts (`guard: injection_attempt`, without calling the provider) |
+| Model | persona and tone from the manual; forbids stating price, stock or deadline without a tool |
+| Output (code) | price gate: every `R$` must exist in a tool result from the same turn |
+| Authorization | opaque token; `lookup_order` uses the session's customer, never an id coming from the model |
+| Cost | 60k-token budget per session, 10 messages/minute per session, 120 sessions/hour per origin |
+| Audit | one JSONL line per turn in `logs/`, with phone and e-mail masked |
 
-Escopo e acessório **não** são bloqueados por palavra-chave: "vocês vendem cordas?" é pergunta
-legítima e a resposta certa é redirecionar com educação, não negar atendimento.
+Scope and accessories are **not** blocked by keyword: "do you sell guitar strings?" is a legitimate
+question, and the right answer is a polite redirect — not denying service.
 
-## Avaliação
+## Evaluation
 
-Casos declarativos em [`evals/casos.jsonl`](evals/casos.jsonl), executados **contra a API real**
-(mesmo caminho da produção, com modelo e latência reais):
+Declarative cases in [`evals/casos.jsonl`](evals/casos.jsonl), executed **against the real API** (same
+path as production, with real model and latency):
 
 ```bash
-docker compose exec api python scripts/eval.py            # tabela
-docker compose exec api python scripts/eval.py --json     # saída para máquina
+docker compose exec api python scripts/eval.py            # table
+docker compose exec api python scripts/eval.py --json     # machine-readable
 docker compose exec api python scripts/eval.py --ids pix,devolucao
 ```
 
-Cobrem os 4 cenários do enunciado, as 6 armadilhas dos dados, tentativa de injeção, pergunta fora
-de escopo e consulta de pedido de outro cliente. Resultado atual: **14/14**.
+They cover the four scenarios from the brief, the six data traps, an injection attempt, an
+out-of-scope question and a lookup for another customer's order. Current result: **15/15**.
 
+## Data assumptions and quality
 
-## Premissas e qualidade dos dados
+The source files **were not edited**. Divergences are reported by the build (`qualidade_dados`) and
+treated as documented assumptions — never silently corrected:
 
-Os arquivos de origem **não foram editados**. Divergências são reportadas pelo build
-(`qualidade_dados`) e tratadas como premissa documentada, nunca corrigidas em silêncio:
-
-| Achado | Impacto no comportamento |
+| Finding | Impact on behaviour |
 |---|---|
-| Pedidos 3 e 20 têm `total_brl` diferente da soma dos itens (R$3.450 vs R$3.498; R$1.400 vs R$1.488) | O agente reporta o total gravado e sinaliza a divergência; não recalcula nem inventa desconto |
-| `stock_quantity` é o estoque **atual**, não o da data do pedido | Nunca inferir "estava sem estoque" a partir do estoque de hoje |
-| Categorias 6 (Sopro/Madeiras), 7 (Metais) e 8 (Cordas Orquestrais) não têm produtos | Pergunta sobre saxofone/violino recebe resposta honesta, sem invenção |
-| Produtos 96 e 113 com estoque 0 (113 descontinuado) | "Violões até R$1.000" retorna 12 disponíveis, não 14 |
-| Promoção de 12% no Takamine GD20 (id 95) está **inativa** | Preço correto é R$2.199, sem desconto |
-| 18 dos 50 clientes têm pedido; ids 3 e 7 têm 2 pedidos cada (um deles cancelado) | Identificação por telefone, não por nome |
+| Orders 3 and 20 have `total_brl` different from the sum of items (R$3,450 vs R$3,498; R$1,400 vs R$1,488) | The agent reports the stored total and flags the divergence; it does not recompute or invent a discount |
+| `stock_quantity` is the **current** stock, not the stock at order time | Never infer "it was out of stock" from today's stock |
+| Categories 6 (Woodwinds), 7 (Brass) and 8 (Orchestral strings) have no products | A question about a saxophone or a violin gets an honest answer, with no invention |
+| Products 96 and 113 have zero stock (113 is discontinued) | "Guitars up to R$1,000" returns 12 available, not 14 |
+| The 12% promotion on the Takamine GD20 (id 95) is **inactive** | Correct price is R$2,199, with no discount |
+| 18 of the 50 customers have orders; ids 3 and 7 have two each (one cancelled) | Identification by phone, not by name |
 
-Detalhamento completo em [`memory-bank/02-dados-e-premissas.md`](memory-bank/02-dados-e-premissas.md).
+Full detail in [`memory-bank/02-dados-e-premissas.md`](memory-bank/02-dados-e-premissas.md).
 
-## Exemplos de interação
+## Interaction examples
 
-Cinco conversas em [`docs/exemplos/`](docs/exemplos/), **geradas por script** contra a API real
-(`scripts/conversas.py`), não escritas à mão:
+Five conversations in [`docs/exemplos/`](docs/exemplos/), **generated by script** against the real API
+(`scripts/conversas.py`), not written by hand:
 
-| Arquivo | Cenário |
+| File | Scenario |
 |---|---|
-| [01-catalogo-e-preco](docs/exemplos/01-catalogo-e-preco.md) | filtro por faixa de preço e preço de um modelo |
-| [02-status-de-pedido](docs/exemplos/02-status-de-pedido.md) | identificação por telefone e status de pedido (multi-turno) |
-| [03-politica-de-devolucao](docs/exemplos/03-politica-de-devolucao.md) | arrependimento e defeito, com citação de §4.1, §4.2 e §8.1 |
-| [04-fora-de-escopo-e-acessorio](docs/exemplos/04-fora-de-escopo-e-acessorio.md) | assunto fora da loja e acessório não vendido |
-| [05-tentativa-de-desvio](docs/exemplos/05-tentativa-de-desvio.md) | pedido para ignorar instruções, recusado pelo guard |
+| [01-catalogo-e-preco](docs/exemplos/01-catalogo-e-preco.md) | price-range filter and the price of one model |
+| [02-status-de-pedido](docs/exemplos/02-status-de-pedido.md) | phone identification and order status (multi-turn) |
+| [03-politica-de-devolucao](docs/exemplos/03-politica-de-devolucao.md) | buyer's remorse and defect, citing §4.1, §4.2 and §8.1 |
+| [04-fora-de-escopo-e-acessorio](docs/exemplos/04-fora-de-escopo-e-acessorio.md) | off-topic subject and an accessory the store does not sell |
+| [05-tentativa-de-desvio](docs/exemplos/05-tentativa-de-desvio.md) | request to ignore instructions, refused by the guard |
 
-Cada transcrição registra **em qual turno** cada ferramenta foi consultada — é o que demonstra o
-"quando consultar" que o enunciado pede.
+Each transcript records **which tool was consulted in which turn** — that is what demonstrates the
+"when to consult" the brief asks for.
 
-## Integração da interface
+## Frontend integration
 
-Ponto de partida para quem constrói o front. O contrato completo está em `/docs` (OpenAPI).
+Starting point for whoever builds the UI. The full contract is in `/docs` (OpenAPI).
 
-1. **Sessão:** `POST /v1/sessions` devolve `access_token`. Guarde **em memória** — não em
-   `localStorage`, para reduzir exposição a XSS.
-2. **Toda chamada** leva `Authorization: Bearer <access_token>`. Token expirado devolve `401` com
-   `detail.code = expired_token`: basta abrir nova sessão.
-3. **Chat:** `POST /v1/chat` responde `text/event-stream`. Use `fetch` + `ReadableStream` —
-   `EventSource` não envia cabeçalhos, então não funciona com Bearer.
-4. **Renderização:**
-   - concatene `token.delta` (é a resposta em pedaços);
-   - `card` traz o dado estruturado (`produto`, `pedido`, `politica`, `pagamento`) para renderizar
-     como bloco, não como texto;
-   - se chegar `guard` com `acao = substituir_resposta`, **substitua** o texto já renderizado pelo
-     campo `texto` — o gate de preço pode corrigir a resposta depois dos tokens;
-   - `usage` atualiza o medidor de tokens; `done` encerra o turno e traz `request_id`.
-5. **Erros:** `400` mensagem longa · `401` token · `429` rate limit ou orçamento (leia `Retry-After`).
-   Falha no meio do stream chega como evento `error`, não como status HTTP.
-6. **CORS:** liberado para as origens de desenvolvimento (`localhost:5173`, `3000`, `4173`),
-   configurável em `CORS_ORIGINS`. Os cabeçalhos `X-RateLimit-*` e `X-Budget-Remaining` são expostos
-   ao navegador.
-7. **Histórico:** `GET /v1/sessions/{id}/messages` devolve os turnos anteriores, útil para reidratar a
-   tela. `DELETE /v1/sessions/{id}` encerra e apaga o histórico.
+1. **Session:** `POST /v1/sessions` returns an `access_token`. Keep it **in memory** — not in
+   `localStorage`, to reduce XSS exposure.
+2. **Every call** carries `Authorization: Bearer <access_token>`. An expired token returns `401` with
+   `detail.code = expired_token`: just open a new session.
+3. **Chat:** `POST /v1/chat` responds with `text/event-stream`. Use `fetch` + `ReadableStream` —
+   `EventSource` does not send headers, so it cannot carry the Bearer token.
+4. **Rendering:**
+   - concatenate `token.delta` (the answer arrives in pieces);
+   - `card` carries structured data (`produto`, `pedido`, `politica`, `pagamento`) to render as a
+     block, not as text;
+   - if a `guard` event arrives with `acao = substituir_resposta`, **replace** the already rendered
+     text with its `texto` field — the price gate can correct the answer after the tokens;
+   - `usage` updates the token meter; `done` ends the turn and carries `request_id`.
+5. **Errors:** `400` long message · `401` token · `429` rate limit or budget (read `Retry-After`).
+   A failure mid-stream arrives as an `error` event, not as an HTTP status.
+6. **CORS:** open for development origins (`localhost:5173`, `3000`, `4173`), configurable in
+   `CORS_ORIGINS`. The `X-RateLimit-*` and `X-Budget-Remaining` headers are exposed to the browser.
+7. **History:** `GET /v1/sessions/{id}/messages` returns previous turns, useful to rehydrate the
+   screen. `DELETE /v1/sessions/{id}` ends the session and deletes the history.
 
-## Limitações conhecidas e o que faria com mais tempo
+## Known limitations and what I would do with more time
 
-**Limitações**
+**Limitations**
 
-1. **Interface simples, sem build step.** É React 18 + htm servido como estático, não um app Vite
-   com roteamento e testes de UI. Serve para demonstrar o contrato, não como produto final.
-2. **SQLite sem réplica horizontal.** Atende o volume; escalar exigiria banco compartilhado.
-3. **Rate limit por origem usa o IP da conexão.** Atrás de proxy, todos compartilham o IP do proxy.
-4. **Auditoria em arquivo**, sem rotação automática nem retenção programada.
-5. **Retrieval lexical não cobre sinonímia.** "Algo para tocar bossa nova" não acha nada por BM25 —
-   o agente precisa reformular com o cliente em vez de inventar.
-6. **Sem busca semântica de produto** (decisão do ADR 0003).
-7. **Sem autenticação de pessoa**: sessão anônima. Adequado ao escopo, insuficiente para área logada.
-8. **Custo em reais/dólares não é calculado** — só tokens. O preço por modelo varia e envelhece.
-9. **Evals rodam sob demanda**, não no CI com baseline.
-10. **C4 nível 4 fora de escopo**, por decisão registrada em `docs/architecture/c4.md`.
+1. **Simple interface, no build step.** It is React 18 + htm served as static files, not a Vite app
+   with routing and UI tests. It demonstrates the contract; it is not a finished product.
+2. **SQLite without horizontal replication.** Fine for this volume; scaling would need a shared
+   database.
+3. **Per-origin rate limit uses the connection IP.** Behind a proxy, every client shares the proxy's IP.
+4. **Audit in a file**, with no automatic rotation or scheduled retention.
+5. **Lexical retrieval does not cover synonymy.** "Something to play bossa nova" finds nothing through
+   BM25 — the agent has to rephrase with the customer instead of inventing.
+6. **No semantic product search** (ADR 0003).
+7. **No person-level authentication**: anonymous session. Adequate for the scope, insufficient for a
+   logged-in area.
+8. **Cost in currency is not computed** — tokens only. Price per model varies and goes stale.
+9. **Evals run on demand**, not in CI with a baseline.
+10. **C4 level 4 out of scope**, by decision recorded in `docs/architecture/c4.md`.
 
-**Com mais tempo, nesta ordem de valor**
+**With more time, in order of value**
 
-1. Retrieval híbrido: BM25 para recall + embeddings só no rerank dos 10 candidatos.
-2. Evals no CI, com baseline versionado e bloqueio de regressão.
-3. Postgres (dados e sessões) + pgvector, com migração do repositório de dados.
-4. Testes automatizados da interface (hoje ela é validada manualmente no navegador).
-5. Rotação de auditoria, retenção definida e envio para armazenamento.
-6. Rate limit e orçamento distribuídos (Redis) para múltiplas réplicas.
-7. Human-in-the-loop para reclamação e devolução de alto valor.
-8. Observabilidade com OpenTelemetry e SLO de latência.
+1. Hybrid retrieval: BM25 for recall + embeddings only to rerank the top 10 candidates.
+2. Evals in CI, with a versioned baseline and regression blocking.
+3. Postgres (data and sessions) + pgvector, migrating the data repository.
+4. Automated interface tests (today it is validated manually in the browser).
+5. Audit rotation, defined retention and shipping to storage.
+6. Distributed rate limit and budget (Redis) for multiple replicas.
+7. Human-in-the-loop for complaints and high-value returns.
+8. Observability with OpenTelemetry and a latency SLO.
 
-## Uso de assistentes de código
+## Use of code assistants
 
-Ferramenta principal: **opencode** em modo agente, com skills de engenharia próprias (planejamento,
-segurança, IA, design) e **spec-kit** para desenvolvimento guiado por especificação. O modelo foi o
-DeepSeek, usado também como provedor do agente.
+Main tool: **opencode** in agent mode, with purpose-built engineering skills (planning, security, AI,
+design) and **spec-kit** for spec-driven development. The model was DeepSeek, also used as the agent's
+provider.
 
-**Como foi usado** — não como gerador de código solto, mas em ciclos com critério de aceite:
+**How it was used** — not as a loose code generator, but in cycles with acceptance criteria:
 
-1. **Leitura antes de escrever.** O agente leu os 6 CSVs e o PDF antes de propor qualquer coisa; a
-   análise de dados (volumetria, integridade, divergências) virou premissa documentada e caso de eval.
-2. **Plano com trade-offs explícitos.** Cada decisão relevante teve opções, custo e reversão (ADRs
-   0001–0004). Duas escolhas do plano original foram revertidas por evidência: guard de escopo por
-   regex (virou decisão do modelo) e tipo `C4Context` do Mermaid (layout cruzava rótulos).
-3. **Verificação real, não "deve funcionar".** Toda fase terminou com `pytest`, `ruff`,
-   `docker compose up --build` e, no fim, `scripts/eval.py` contra a API com modelo real.
-4. **Teste antes do conserto.** Todo bug abaixo virou teste de regressão.
+1. **Read before writing.** The agent read the 6 CSVs and the PDF before proposing anything; the data
+   analysis (volume, integrity, divergences) became a documented assumption and an eval case.
+2. **Plan with explicit trade-offs.** Every relevant decision had options, cost and a rollback path
+   (ADRs 0001–0005). Two choices from the original plan were reverted by evidence: a regex scope
+   guard (became the model's judgement) and Mermaid's `C4Context` type (the layout crossed labels).
+3. **Real verification, not "it should work".** Every phase ended with `pytest`, `ruff`,
+   `docker compose up --build` and, at the end, `scripts/eval.py` against the API with the real model.
+4. **Test before fixing.** Every bug below became a regression test.
 
-**O que o agente errou e como foi pego** (transparência importa mais que a lista de acertos):
+**What the agent got wrong and how it was caught** (transparency matters more than a list of wins):
 
-| Erro | Como apareceu |
+| Error | How it surfaced |
 |---|---|
-| Gate de preço bloqueava resposta **correta** (`R$ 2.199,00` lido como 2.199 + 00) | primeira execução real do CLI |
-| Stoplist de busca mal construída (`(...).__str__().split()` gerava `"('a"`), nenhuma palavra era filtrada | teste com pergunta real, não com `SELECT` de sanidade |
-| Prefixo de 6 caracteres não casava `devolver`/`devolução` | teste de retrieval em linguagem natural |
-| Contexto inflava para 13,4k tokens no 3º turno | leitura do consumo real |
-| `tool_call` fantasma e sem nome no SSE | inspeção do corpo do stream |
-| Endereço respondido de memória em vez de consultar o manual | cenário do próprio enunciado |
-| Encoding corrompido por comando de shell no Windows | conferência de bytes antes do commit |
+| The price gate blocked a **correct** answer (`R$ 2,199.00` parsed as 2,199 + 00) | first real CLI run |
+| A badly built search stoplist (`(...).__str__().split()` produced `"('a"`), so no word was filtered | a test with a real question, not a sanity `SELECT` |
+| A 6-character prefix did not match `devolver` with `devolução` | natural-language retrieval test |
+| Context grew to 13.4k tokens by the third turn | reading real usage |
+| Phantom, nameless `tool_call` events in the SSE stream | inspecting the stream body |
+| The address answered from memory instead of querying the manual | a scenario from the brief itself |
+| Encoding corrupted by a Windows shell command | byte check before committing |
+| The agent granted an in-store return window that only applies online, and invented requirements | an independent test session, run against the UI |
 
-**Duas sessões de agente rodaram em paralelo por engano** e colidiram no mesmo working tree. O
-histórico ficou entrelaçado (15 commits em 2 minutos, sem duplicação de arquivo). A correção foi
-serializar, adotar o que a outra sessão produziu de melhor (infraestrutura de testes, ADR 0001,
-`uv.lock`) e manter o hábito de commits pequenos por assunto.
-
+**Two agent sessions ran in parallel by mistake** and collided in the same working tree. The history
+came out interleaved (15 commits in 2 minutes, no duplicated files). The fix was to serialise, adopt
+the best of what the other session produced (test infrastructure, ADR 0001, `uv.lock`) and keep the
+habit of small, single-subject commits.
 
 ---
 
-## Estrutura
+## Structure
 
 ```
-api/            # FastAPI + agente
+api/            # FastAPI + agent
   app/
-    api/        # rotas
-    core/       # configuração
+    api/        # routes
+    core/       # configuration
   tests/
-web/            # interface (React 18 + htm, sem build step) + nginx
-data/           # CSVs e PDF originais (intocados)
-scripts/        # utilitários (build_db, eval, conversas)
-docs/           # arquitetura (C4), ADRs, exemplos de conversa
-evals/          # casos de teste do agente
-memory-bank/    # contexto do projeto para agentes de código
-specs/          # artefatos de desenvolvimento (spec-kit)
+web/            # interface (React 18 + htm, no build step) + nginx
+data/           # original CSVs and PDF (untouched)
+scripts/        # utilities (build_db, eval, conversations)
+docs/           # architecture (C4), ADRs, conversation examples, test rounds
+evals/          # agent test cases
+memory-bank/    # project context for coding agents
+specs/          # development artifacts (spec-kit)
 ```
 
-### Desenvolvimento guiado por especificação
+### Spec-driven development
 
-O projeto começou com **spec-kit** (GitHub Spec-Driven Development), cada fase com aprovação explícita
-antes de avançar. Só os **artefatos** são versionados:
+The project started with **spec-kit** (GitHub Spec-Driven Development), each phase requiring explicit
+approval before moving on. Only the **artifacts** are versioned:
 
 ```
 specs/
-  constitution.md          # princípios do projeto (escrita ANTES do código)
-  README.md                # como ler e o que é retrospectivo
+  constitution.md          # project principles (written BEFORE the code)
+  README.md                # how to read it and what is retrospective
   001-atendimento-por-texto/
-    spec.md                # o quê e por quê
-    plan.md                # stack, arquitetura, riscos
-    tasks.md               # tarefas verificáveis, com o commit de cada uma
+    spec.md                # the what and the why
+    plan.md                # stack, architecture, risks
+    tasks.md               # verifiable tasks, each with its commit
 ```
 
-**Honestidade sobre a ordem:** a constituição foi escrita antes da implementação; `spec.md`,
-`plan.md` e `tasks.md` foram escritos **depois**, a partir dos commits e do
-`memory-bank/03-fases-e-gates.md`. Com dois dias de prazo, o custo de cerimônia por fase foi
-timeboxado e o desenvolvimento seguiu com gates registrados no memory-bank. O histórico do Git **não
-foi reescrito** para simular outra ordem — spec retroativa é prática válida de SDD (o próprio
-spec-kit tem `/speckit.converge`), esconder que é retroativo não seria.
+**Honesty about the order:** the constitution was written before implementation; `spec.md`, `plan.md`
+and `tasks.md` were written **afterwards**, from the commits and
+`memory-bank/03-fases-e-gates.md`. With a two-day deadline, the cost of per-phase ceremony was
+timeboxed and development proceeded with gates recorded in the memory bank. The Git history was **not
+rewritten** to simulate another order — retrospective specs are a legitimate SDD practice (spec-kit
+itself ships `/speckit.converge`); hiding that it is retrospective would not be.
 
-As pastas de ferramenta (`.specify/`, `.opencode/`) ficam fora do controle de versão — são
-reproduzíveis com `uvx --from git+https://github.com/github/spec-kit.git specify init` e não
-pertencem à entrega.
+Tool folders (`.specify/`, `.opencode/`) stay out of version control — they are reproducible with
+`uvx --from git+https://github.com/github/spec-kit.git specify init` and are not part of the
+deliverable.
